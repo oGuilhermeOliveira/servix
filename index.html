@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Servix Solutions | Conectando pessoas e profissionais</title>
+  <meta name="description" content="Encontre profissionais qualificados para serviços do dia a dia. Rápido, prático e seguro com a Servix Solutions.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="#" class="brand">Servix <span>Solutions</span></a>
+      <nav class="menu">
+        <a href="#servicos">Servicos</a>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#profissional">Seja profissional</a>
+        <a href="#depoimentos">Depoimentos</a>
+      </nav>
+      <a href="#pedido" class="btn btn-small">Pedir orcamento</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="badge">Mais de 500 tipos de servicos em um so lugar</p>
+          <h1>Conectando quem precisa de servicos a profissionais qualificados</h1>
+          <p class="lead">Solicite em minutos, receba ate 4 orcamentos e escolha com seguranca. Tudo no estilo da colmeia: organizado, rapido e colaborativo.</p>
+          <div class="hero-actions">
+            <a class="btn" href="#pedido">Buscar servico</a>
+            <a class="btn btn-secondary" href="#profissional">Quero ser profissional</a>
+          </div>
+          <p class="trust">4.8 de avaliacao media | Atendimento em milhares de cidades</p>
+        </div>
+        <div class="hero-card">
+          <h2>Qual servico voce precisa hoje?</h2>
+          <form id="quick-form">
+            <label for="categoria">Categoria</label>
+            <select id="categoria" required>
+              <option value="">Selecione uma categoria</option>
+              <option>Reformas e Reparos</option>
+              <option>Servicos Domesticos</option>
+              <option>Design e Tecnologia</option>
+              <option>Saude e Bem-estar</option>
+            </select>
+            <label for="cidade">Cidade</label>
+            <input id="cidade" type="text" placeholder="Ex.: Sao Paulo, SP" required>
+            <button class="btn full" type="submit">Receber orcamentos gratis</button>
+          </form>
+          <small>Servico rapido, pratico e seguro.</small>
+        </div>
+      </div>
+    </section>
+
+    <section id="servicos" class="section">
+      <div class="container">
+        <h2>Principais categorias</h2>
+        <p class="section-sub">Explore as areas mais buscadas na rede Servix.</p>
+        <div class="cards">
+          <article class="card"><h3>Reformas e Reparos</h3><p>Eletricista, encanador, pintor e muito mais.</p></article>
+          <article class="card"><h3>Servicos Domesticos</h3><p>Diarista, passadeira, cuidador e apoio para o lar.</p></article>
+          <article class="card"><h3>Design e Tecnologia</h3><p>Sites, identidade visual, marketing e suporte.</p></article>
+          <article class="card"><h3>Aulas e Consultoria</h3><p>Idiomas, reforco, financeiro e desenvolvimento.</p></article>
+          <article class="card"><h3>Eventos e Festa</h3><p>Buffet, DJ, fotografo e organizacao completa.</p></article>
+          <article class="card"><h3>Saude e Bem-estar</h3><p>Profissionais para corpo, mente e qualidade de vida.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="como-funciona" class="section alt">
+      <div class="container">
+        <h2>Como funciona</h2>
+        <div class="steps">
+          <article><span>1</span><h3>Faca seu pedido</h3><p>Descreva o servico em poucos cliques.</p></article>
+          <article><span>2</span><h3>Receba orcamentos</h3><p>Ate 4 profissionais entram em contato rapido.</p></article>
+          <article><span>3</span><h3>Escolha o melhor</h3><p>Compare perfil, avaliacao e preco antes de contratar.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="depoimentos" class="section">
+      <div class="container">
+        <h2>Quem contratou recomenda</h2>
+        <div class="testimonials">
+          <blockquote>"Profissional pontual e excelente atendimento. Processo simples e sem complicacao."</blockquote>
+          <blockquote>"Consegui 3 orcamentos no mesmo dia e fechei com total seguranca."</blockquote>
+          <blockquote>"A plataforma e muito pratica. Encontrei o servico que precisava em minutos."</blockquote>
+        </div>
+      </div>
+    </section>
+
+    <section id="profissional" class="section professional">
+      <div class="container pro-grid">
+        <div>
+          <h2>Seja um profissional Servix</h2>
+          <p>Receba pedidos na sua regiao, escolha oportunidades e aumente sua renda com autonomia.</p>
+          <ul>
+            <li>Pedidos chegando toda hora no celular</li>
+            <li>Sem mensalidade obrigatoria</li>
+            <li>100% do valor do servico e seu</li>
+          </ul>
+        </div>
+        <form id="pro-form" class="pro-form">
+          <h3>Cadastre-se agora</h3>
+          <input type="text" placeholder="Nome completo" required>
+          <input type="email" placeholder="Seu melhor e-mail" required>
+          <input type="tel" placeholder="Celular com DDD" required>
+          <button class="btn full" type="submit">Quero receber pedidos</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="pedido" class="section cta">
+      <div class="container">
+        <h2>Pronto para fazer parte da colmeia?</h2>
+        <p>Conectamos clientes e profissionais com inovacao, confianca, qualidade e colaboracao.</p>
+        <a class="btn" href="#">Solicitar orcamento gratis</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div>
+        <strong>Servix Solutions</strong>
+        <p>Conectar pessoas a profissionais de servicos de forma rapida, pratica e segura.</p>
+      </div>
+      <div>
+        <p>contato@servixsolutions.com</p>
+        <p>Politica de privacidade | Termos</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

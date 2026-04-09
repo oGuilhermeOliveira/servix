@@ -1,0 +1,297 @@
+:root {
+  --primary: #1f2f56;
+  --accent: #f26522;
+  --dark: #000000;
+  --white: #ffffff;
+  --muted: #f3f5f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Montserrat", Arial, sans-serif;
+  color: var(--primary);
+  background: var(--white);
+  line-height: 1.5;
+}
+
+.container {
+  width: min(1120px, 92%);
+  margin: 0 auto;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #e7ebf0;
+  backdrop-filter: blur(6px);
+  z-index: 10;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 74px;
+  gap: 1rem;
+}
+
+.brand {
+  text-decoration: none;
+  font-weight: 800;
+  color: var(--primary);
+  font-size: 1.15rem;
+}
+
+.brand span {
+  color: var(--accent);
+}
+
+.menu {
+  display: flex;
+  gap: 1rem;
+}
+
+.menu a {
+  text-decoration: none;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.hero {
+  padding: 70px 0 55px;
+  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.badge {
+  display: inline-block;
+  background: #e9eef8;
+  color: var(--primary);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  line-height: 1.15;
+  margin: 0.8rem 0;
+}
+
+.lead {
+  max-width: 60ch;
+  color: #34466f;
+}
+
+.hero-card {
+  background: var(--white);
+  border: 1px solid #e7ebf0;
+  border-radius: 14px;
+  padding: 1.2rem;
+  box-shadow: 0 10px 30px rgba(10, 30, 80, 0.08);
+}
+
+.hero-card h2 {
+  margin-top: 0;
+  font-size: 1.2rem;
+}
+
+label {
+  display: block;
+  margin: 0.8rem 0 0.3rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 0.72rem;
+  border: 1px solid #d2dbea;
+  border-radius: 10px;
+  font: inherit;
+}
+
+.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--white);
+  text-decoration: none;
+  border: none;
+  border-radius: 10px;
+  padding: 0.78rem 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.btn-secondary {
+  background: var(--primary);
+}
+
+.btn-small {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.full {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.trust {
+  font-size: 0.9rem;
+  color: #506082;
+}
+
+.section {
+  padding: 60px 0;
+}
+
+.section h2 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+}
+
+.section-sub {
+  margin-top: 0;
+  color: #55658b;
+}
+
+.cards {
+  margin-top: 1.2rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid #e6ebf3;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.card h3 {
+  margin: 0 0 0.4rem;
+}
+
+.alt {
+  background: var(--muted);
+}
+
+.steps {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.steps article {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.steps span {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-weight: 800;
+  color: #fff;
+  background: var(--primary);
+}
+
+.testimonials {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+blockquote {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #fff6f1;
+  border: 1px solid #ffe2d1;
+}
+
+.professional {
+  background: var(--primary);
+  color: #fff;
+}
+
+.professional ul {
+  padding-left: 1.1rem;
+}
+
+.pro-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.2rem;
+  align-items: center;
+}
+
+.pro-form {
+  background: #ffffff;
+  color: var(--primary);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.cta {
+  text-align: center;
+}
+
+.footer {
+  border-top: 1px solid #e7ebf0;
+  padding: 28px 0;
+}
+
+.footer-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 980px) {
+  .menu {
+    display: none;
+  }
+
+  .hero-grid,
+  .cards,
+  .steps,
+  .testimonials,
+  .pro-grid {
+    grid-template-columns: 1fr;
+  }
+}
