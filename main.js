@@ -1,4 +1,38 @@
-function showMessage(formId, message) {
+import { supabase } from "./supabase-init.js";
+import { getAreaSlugsForHeroCategory } from "./category-map.js";
+
+const SESSION_SEARCH_KEY = "servix:last-search";
+const GEO_TIMEOUT_MS = 10000;
+
+function getClientCoords(timeoutMs) {
+  return new Promise(function (resolve) {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    let settled = false;
+    const finish = function (coords) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(t);
+      resolve(coords);
+    };
+    const t = setTimeout(function () {
+      finish(null);
+    }, timeoutMs);
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        finish({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      function () {
+        finish(null);
+      },
+      { enableHighAccuracy: false, maximumAge: 120000, timeout: Math.max(2000, timeoutMs - 500) }
+    );
+  });
+}
+
+function showMessage(formId, message, isError) {
   const form = document.getElementById(formId);
   if (!form) return;
 
@@ -10,7 +44,7 @@ function showMessage(formId, message) {
   feedback.textContent = message;
   feedback.style.marginTop = "0.8rem";
   feedback.style.fontWeight = "700";
-  feedback.style.color = "var(--primary)";
+  feedback.style.color = isError ? "var(--danger, #c0392b)" : "var(--primary)";
   form.appendChild(feedback);
 }
 
@@ -99,18 +133,61 @@ if (themeSwitcher && themeFabButton && themeMenu) {
 
 const quickForm = document.getElementById("quick-form");
 if (quickForm) {
-  quickForm.addEventListener("submit", function (event) {
+  quickForm.addEventListener("submit", async function (event) {
     event.preventDefault();
-    showMessage("quick-form", "Pedido enviado. Em breve voce recebera ate 4 orcamentos.");
-    quickForm.reset();
+    const category = document.getElementById("categoria")?.value?.trim() || "";
+    const city = document.getElementById("cidade")?.value?.trim() || "";
+    const areaSlugs = getAreaSlugsForHeroCategory(category);
+
+    if (!supabase) {
+      showMessage(
+        "quick-form",
+        "Configure supabase-config.js (copie de supabase-config.example.js) com URL e chave anon do Supabase.",
+        true
+      );
+      return;
+    }
+
+    if (areaSlugs.length === 0) {
+      showMessage("quick-form", "Selecione uma categoria válida.", true);
+      return;
+    }
+
+    const coords = await getClientCoords(GEO_TIMEOUT_MS);
+    const row = {
+      category: category,
+      city: city,
+      client_lat: coords ? coords.lat : null,
+      client_lng: coords ? coords.lng : null,
+    };
+
+    const { error } = await supabase.from("service_requests").insert(row);
+    if (error) {
+      console.error("Supabase service_requests:", error.message, error);
+      showMessage(
+        "quick-form",
+        "Não foi possível enviar: " + (error.message || "verifique URL (…supabase.co), chave anon e o script SQL (migration_002_geo)."),
+        true
+      );
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(
+        SESSION_SEARCH_KEY,
+        JSON.stringify({
+          category: category,
+          city: city,
+          areaSlugs: areaSlugs,
+          clientLat: coords ? coords.lat : null,
+          clientLng: coords ? coords.lng : null,
+        })
+      );
+    } catch (e) {
+      console.warn("sessionStorage", e);
+    }
+
+    window.location.href = "resultados.html";
   });
 }
 
-const proForm = document.getElementById("pro-form");
-if (proForm) {
-  proForm.addEventListener("submit", function (event) {
-    event.preventDefault();
-    showMessage("pro-form", "Cadastro recebido. A equipe Servix vai entrar em contato.");
-    proForm.reset();
-  });
-}

@@ -17,7 +17,7 @@
       <nav class="menu">
         <a href="#servicos">Servicos</a>
         <a href="#como-funciona">Como funciona</a>
-        <a href="#profissional">Seja profissional</a>
+        <a href="prestador.html">Seja profissional</a>
         <a href="#depoimentos">Depoimentos</a>
       </nav>
       <div class="nav-actions">
@@ -35,7 +35,7 @@
           <p class="lead">Solicite em minutos, receba ate 4 orcamentos e escolha com seguranca. Tudo no estilo da colmeia: organizado, rapido e colaborativo.</p>
           <div class="hero-actions">
             <a class="btn" href="#pedido">Buscar servico</a>
-            <a class="btn btn-secondary" href="#profissional">Quero ser profissional</a>
+            <a class="btn btn-secondary" href="prestador.html">Quero ser profissional</a>
           </div>
           <p class="trust">4.8 de avaliacao media | Atendimento em milhares de cidades</p>
         </div>
@@ -52,6 +52,7 @@
             </select>
             <label for="cidade">Cidade</label>
             <input id="cidade" type="text" placeholder="Ex.: Sao Paulo, SP" required>
+            <p class="form-hint hero-geo-hint">Ao enviar, você pode permitir a localização no navegador para listar profissionais mais próximos.</p>
             <button class="btn full" type="submit">Receber orcamentos gratis</button>
           </form>
           <small>Servico rapido, pratico e seguro.</small>
@@ -107,13 +108,11 @@
             <li>100% do valor do servico e seu</li>
           </ul>
         </div>
-        <form id="pro-form" class="pro-form">
-          <h3>Cadastre-se agora</h3>
-          <input type="text" placeholder="Nome completo" required>
-          <input type="email" placeholder="Seu melhor e-mail" required>
-          <input type="tel" placeholder="Celular com DDD" required>
-          <button class="btn full" type="submit">Quero receber pedidos</button>
-        </form>
+        <article class="pro-form">
+          <h3>Cadastro em pagina dedicada</h3>
+          <p>Crie sua conta com e-mail e senha, informe endereco e foto de perfil para aparecer nas buscas por proximidade.</p>
+          <a class="btn full" href="prestador.html">Ir para cadastro do prestador</a>
+        </article>
       </div>
     </section>
 
@@ -160,6 +159,6 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>
