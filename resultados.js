@@ -4,77 +4,49 @@ const SESSION_SEARCH_KEY = "servix:last-search";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
-  const toRad = function (d) {
-    return (d * Math.PI) / 180;
-  };
+  const toRad = function (d) { return (d * Math.PI) / 180; };
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function normalizeCity(s) {
-  return (s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function providerSlugs(row) {
   const links = row.provider_service_areas || [];
-  const out = [];
-  links.forEach(function (link) {
-    const a = link.service_areas;
-    if (a && a.slug) out.push(a.slug);
-  });
-  return out;
+  return links.map(l => l.service_areas?.slug).filter(Boolean);
 }
 
 function formatAreas(row) {
   const links = row.provider_service_areas || [];
-  const names = [];
-  links.forEach(function (link) {
-    const a = link.service_areas;
-    if (a && a.name) names.push(a.name);
-  });
+  const names = links.map(l => l.service_areas?.name).filter(Boolean);
   return names.length ? names.join(", ") : "—";
 }
 
 function readSearchSession() {
   try {
     const raw = sessionStorage.getItem(SESSION_SEARCH_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
 }
 
-const titleEl = document.getElementById("results-title");
-const subtitleEl = document.getElementById("results-subtitle");
-const listEl = document.getElementById("results-list");
-const emptyEl = document.getElementById("results-empty");
+// --- Tema ---
+const THEME_KEY = "servix-theme-mode";
+const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const themeSwitcher = document.getElementById("theme-switcher");
 const themeFabButton = document.getElementById("theme-fab-button");
 const themeMenu = document.getElementById("theme-menu");
 const themeMenuItems = document.querySelectorAll(".theme-menu-item");
-const THEME_KEY = "servix-theme-mode";
-const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 function getResolvedTheme(mode) {
   if (mode === "system") return mediaQuery.matches ? "dark" : "light";
   return mode;
 }
-
 function applyTheme(mode) {
   document.documentElement.setAttribute("data-theme", getResolvedTheme(mode));
 }
-
 function updateThemeSelection(mode) {
   themeMenuItems.forEach(function (item) {
     const isActive = item.dataset.themeMode === mode;
@@ -82,13 +54,11 @@ function updateThemeSelection(mode) {
     item.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 }
-
 function getInitialThemeMode() {
-  const savedMode = localStorage.getItem(THEME_KEY);
-  if (savedMode === "light" || savedMode === "dark" || savedMode === "system") return savedMode;
+  const saved = localStorage.getItem(THEME_KEY);
+  if (["light", "dark", "system"].includes(saved)) return saved;
   return "system";
 }
-
 function closeThemeMenu() {
   if (!themeMenu || !themeFabButton) return;
   themeMenu.hidden = true;
@@ -105,7 +75,6 @@ if (themeSwitcher && themeFabButton && themeMenu) {
     themeMenu.hidden = isOpen;
     themeFabButton.setAttribute("aria-expanded", isOpen ? "false" : "true");
   });
-
   themeMenuItems.forEach(function (item) {
     item.addEventListener("click", function () {
       const nextMode = item.dataset.themeMode;
@@ -117,19 +86,22 @@ if (themeSwitcher && themeFabButton && themeMenu) {
       closeThemeMenu();
     });
   });
-
   document.addEventListener("click", function (event) {
     if (!themeSwitcher.contains(event.target)) closeThemeMenu();
   });
-
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") closeThemeMenu();
   });
-
   mediaQuery.addEventListener("change", function () {
     if (currentThemeMode === "system") applyTheme("system");
   });
 }
+
+// --- Resultados ---
+const titleEl = document.getElementById("results-title");
+const subtitleEl = document.getElementById("results-subtitle");
+const listEl = document.getElementById("results-list");
+const emptyEl = document.getElementById("results-empty");
 
 async function run() {
   const search = readSearchSession();
@@ -140,19 +112,19 @@ async function run() {
   }
 
   if (titleEl) titleEl.textContent = "Profissionais em " + (search.category || "sua categoria");
+
+  const hasCoords = search.clientLat != null && search.clientLng != null;
+
   if (subtitleEl) {
-    const geoHint =
-      search.clientLat != null && search.clientLng != null
-        ? " Ordenados pela sua localização (quando o profissional informou coordenadas)."
-        : " Ative a localização no próximo pedido para ordenar por distância.";
-    subtitleEl.textContent = (search.city ? "Região informada: " + search.city + "." : "") + geoHint;
+    const locText = search.city ? `Região: ${search.city}${search.cep ? ` (CEP ${search.cep})` : ""}.` : "";
+    const geoHint = hasCoords
+      ? " Ordenados pela distância até você."
+      : " Informe um CEP válido na busca para ordenar por distância.";
+    subtitleEl.textContent = locText + geoHint;
   }
 
   if (!supabase) {
-    if (listEl) {
-      listEl.innerHTML =
-        '<p class="results-error">Configure <code>supabase-config.js</code> e recarregue a página.</p>';
-    }
+    if (listEl) listEl.innerHTML = '<p class="results-error">Configure <code>supabase-config.js</code> e recarregue.</p>';
     return;
   }
 
@@ -167,37 +139,21 @@ async function run() {
   }
 
   const wanted = new Set(search.areaSlugs);
-  const cityNorm = normalizeCity(search.city);
-  let list = (rows || []).filter(function (row) {
-    const slugs = providerSlugs(row);
-    return slugs.some(function (s) {
-      return wanted.has(s);
+
+  let list = (rows || [])
+    .filter(row => providerSlugs(row).some(s => wanted.has(s)))
+    .map(row => {
+      let distanceKm = null;
+      if (hasCoords && row.lat != null && row.lng != null) {
+        distanceKm = haversineKm(search.clientLat, search.clientLng, row.lat, row.lng);
+      }
+      return { row, distanceKm };
     });
-  });
-
-  const hasClient = search.clientLat != null && search.clientLng != null;
-
-  list = list.map(function (row) {
-    let distanceKm = null;
-    if (hasClient && row.lat != null && row.lng != null) {
-      distanceKm = haversineKm(search.clientLat, search.clientLng, row.lat, row.lng);
-    }
-    let cityScore = 0;
-    if (cityNorm && row.city) {
-      const pCity = normalizeCity(row.city);
-      if (pCity && cityNorm.includes(pCity)) cityScore = 2;
-      else if (pCity && pCity.includes(cityNorm.split(",")[0].trim())) cityScore = 1;
-    }
-    return { row: row, distanceKm: distanceKm, cityScore: cityScore };
-  });
 
   list.sort(function (a, b) {
-    const da = a.distanceKm;
-    const db = b.distanceKm;
-    if (da != null && db != null) return da - db;
-    if (da != null) return -1;
-    if (db != null) return 1;
-    if (b.cityScore !== a.cityScore) return b.cityScore - a.cityScore;
+    if (a.distanceKm != null && b.distanceKm != null) return a.distanceKm - b.distanceKm;
+    if (a.distanceKm != null) return -1;
+    if (b.distanceKm != null) return 1;
     return (a.row.full_name || "").localeCompare(b.row.full_name || "", "pt-BR");
   });
 
@@ -238,9 +194,12 @@ async function run() {
     const loc = [row.city, row.state].filter(Boolean).join(" / ");
     let distText = "";
     if (item.distanceKm != null) {
-      distText = " · aprox. " + (item.distanceKm < 10 ? item.distanceKm.toFixed(1) : Math.round(item.distanceKm)) + " km";
-    } else if (hasClient) {
-      distText = " · distância indisponível (profissional sem localização no cadastro)";
+      const km = item.distanceKm < 10
+        ? item.distanceKm.toFixed(1)
+        : Math.round(item.distanceKm);
+      distText = ` · ${km} km de você`;
+    } else if (hasCoords) {
+      distText = " · distância indisponível";
     }
     meta.textContent = (loc || "Local não informado") + distText;
     card.appendChild(meta);
