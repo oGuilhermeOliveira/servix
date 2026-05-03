@@ -199,6 +199,7 @@ async function saveProviderProfile(userId, email, payload) {
 function collectRegisterPayload() {
   const fullName = document.getElementById("reg-full-name").value;
   const phone = document.getElementById("reg-phone").value;
+  const cep = document.getElementById("reg-cep").value; 
   const email = document.getElementById("reg-email").value;
   const password = document.getElementById("reg-password").value;
   const passwordConfirm = document.getElementById("reg-password-confirm").value;
@@ -208,6 +209,7 @@ function collectRegisterPayload() {
   return {
     fullName,
     phone,
+    cep,        
     email,
     password,
     passwordConfirm,
@@ -248,8 +250,48 @@ function clearPendingRegistration() {
   }
 }
 
+// async function finalizeProfileForUser(user, email, payload) {
+//   const avatarUrl = await uploadAvatar(user.id, payload.photo);
+//   await saveProviderProfile(user.id, email, {
+//     fullName: payload.fullName,
+//     phone: payload.phone,
+//     address: payload.composed.address,
+//     city: payload.composed.city,
+//     state: payload.composed.state,
+//     avatarUrl,
+//     areaIds: payload.areaIds,
+//     lat: null,
+//     lng: null,
+//   });
+// }
+
+async function geocodeAddress(city, state, cep) {
+  try {
+    const query = encodeURIComponent(`${cep}, ${city}, ${state}, Brasil`);
+    const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`;
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "pt-BR" }
+    });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return {
+        lat: parseFloat(data[0].lat),
+        lng: parseFloat(data[0].lon),
+      };
+    }
+  } catch (e) {
+    console.warn("Geocode falhou:", e);
+  }
+  return { lat: null, lng: null };
+}
+
 async function finalizeProfileForUser(user, email, payload) {
   const avatarUrl = await uploadAvatar(user.id, payload.photo);
+  const coords = await geocodeAddress(
+    payload.composed.city,
+    payload.composed.state,
+    normalizeCep(payload.cep || "")
+  );
   await saveProviderProfile(user.id, email, {
     fullName: payload.fullName,
     phone: payload.phone,
@@ -258,8 +300,8 @@ async function finalizeProfileForUser(user, email, payload) {
     state: payload.composed.state,
     avatarUrl,
     areaIds: payload.areaIds,
-    lat: null,
-    lng: null,
+    lat: coords.lat,
+    lng: coords.lng,
   });
 }
 
