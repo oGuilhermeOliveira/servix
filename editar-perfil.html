@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Perfil | Servix Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .edit-page { max-width: 640px; }
+
+    .edit-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 1.6rem;
+    }
+
+    .edit-card h1 {
+      font-size: 1.4rem;
+      margin: 0 0 0.3rem;
+    }
+
+    .edit-avatar-row {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      margin: 1.2rem 0;
+      padding: 1rem;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .edit-avatar-preview {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--accent);
+      flex-shrink: 0;
+    }
+
+    .edit-avatar-placeholder {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--badge-bg);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    .edit-avatar-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .edit-avatar-info label {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.4rem 0;
+    }
+
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1.4rem;
+    }
+
+    .edit-actions .btn {
+      flex: 1;
+    }
+
+    .success-banner {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    :root[data-theme="dark"] .success-banner {
+      background: #1a3a24;
+      color: #75d896;
+      border-color: #2d6a3f;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="index.html" class="brand">Servix <span>Solutions</span></a>
+      <div class="nav-actions">
+        <a href="dashboard.html" class="btn btn-small">Meu painel</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container edit-page">
+
+      <div id="edit-loading" style="text-align:center;padding:3rem 0;color:var(--text-muted)">
+        <p>Carregando perfil...</p>
+      </div>
+
+      <div id="edit-not-logged" hidden style="text-align:center;padding:3rem 0">
+        <h2>Acesso restrito</h2>
+        <p style="color:var(--text-muted)">Faça login para editar seu perfil.</p>
+        <a href="prestador.html" class="btn">Ir para login</a>
+      </div>
+
+      <div id="edit-main" hidden>
+        <div class="edit-card">
+          <h1>Editar perfil</h1>
+          <p class="section-sub" style="margin:0 0 0.5rem">Atualize suas informações públicas. E-mail e senha não podem ser alterados aqui.</p>
+
+          <div id="success-banner" class="success-banner">✅ Perfil atualizado com sucesso!</div>
+
+          <form id="edit-form" class="stack">
+
+            <!-- Foto -->
+            <div class="edit-avatar-row">
+              <div id="avatar-preview-wrap">
+                <div class="edit-avatar-placeholder">👤</div>
+              </div>
+              <div class="edit-avatar-info">
+                <label for="edit-photo" style="font-weight:700;color:var(--text);font-size:0.9rem">Foto de perfil</label>
+                <label for="edit-photo">Clique para trocar a foto</label>
+                <input id="edit-photo" type="file" accept="image/*">
+              </div>
+            </div>
+
+            <hr class="section-divider">
+            <p class="section-label">Dados pessoais</p>
+
+            <label for="edit-name">Nome completo *</label>
+            <input id="edit-name" type="text" required autocomplete="name">
+
+            <label for="edit-phone">Telefone *</label>
+            <input id="edit-phone" type="tel" required autocomplete="tel">
+
+            <hr class="section-divider">
+            <p class="section-label">Endereço</p>
+
+            <label for="edit-cep">CEP *</label>
+            <input id="edit-cep" type="text" required inputmode="numeric" placeholder="00000-000" maxlength="9">
+
+            <label for="edit-street">Rua *</label>
+            <input id="edit-street" type="text" required>
+
+            <label for="edit-number">Número *</label>
+            <input id="edit-number" type="text" required placeholder="Ex.: 123">
+
+            <label for="edit-neighborhood">Bairro *</label>
+            <input id="edit-neighborhood" type="text" required>
+
+            <label for="edit-city">Cidade *</label>
+            <input id="edit-city" type="text" required>
+
+            <label for="edit-state">Estado (UF) *</label>
+            <input id="edit-state" type="text" required maxlength="2">
+
+            <hr class="section-divider">
+            <p class="section-label">Áreas de atuação</p>
+            <div id="edit-areas-host" class="pro-areas-host"></div>
+
+            <div class="edit-actions">
+              <a href="dashboard.html" class="btn btn-secondary">Cancelar</a>
+              <button class="btn" type="submit">Salvar alterações</button>
+            </div>
+
+            <p class="form-hint">* Campos obrigatórios</p>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <div class="theme-fab" id="theme-switcher">
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Abrir menu de tema"
+      aria-expanded="false" aria-controls="theme-menu">
+      <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+      <span class="theme-icon theme-icon-moon" aria-hidden="true">☽</span>
+    </button>
+    <div id="theme-menu" class="theme-menu" hidden>
+      <button class="theme-menu-item" type="button" data-theme-mode="light">
+        <span class="theme-item-icon" aria-hidden="true">☀</span><span>Tema claro</span>
+      </button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark">
+        <span class="theme-item-icon" aria-hidden="true">☽</span><span>Tema escuro</span>
+      </button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system">
+        <span class="theme-item-icon" aria-hidden="true">◐</span><span>Padrão do dispositivo</span>
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="editar-perfil.js"></script>
+</body>
+</html>

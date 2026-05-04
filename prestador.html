@@ -16,11 +16,7 @@
       <a href="index.html" class="brand">Servix <span>Solutions</span></a>
       <nav class="menu">
         <a href="index.html">Inicio</a>
-        <a href="index.html#servicos">Servicos</a>
       </nav>
-      <div class="nav-actions">
-        <a href="index.html#pedido" class="btn btn-small">Pedir orcamento</a>
-      </div>
     </div>
   </header>
 
@@ -30,64 +26,72 @@
         <h1>Area do prestador</h1>
         <p class="section-sub">Crie sua conta para receber pedidos e ficar visivel em buscas por proximidade.</p>
 
-        <div class="auth-tabs">
-          <button type="button" class="auth-tab active" id="tab-register">Criar conta</button>
-          <button type="button" class="auth-tab" id="tab-login">Entrar</button>
+        <!-- Mostrado quando NÃO está logado -->
+        <div id="auth-guest">
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab active" id="tab-register">Criar conta</button>
+            <button type="button" class="auth-tab" id="tab-login">Entrar</button>
+          </div>
+
+          <form id="register-form" class="stack">
+            <label for="reg-full-name">Nome completo *</label>
+            <input id="reg-full-name" type="text" required autocomplete="name">
+
+            <label for="reg-phone">Telefone *</label>
+            <input id="reg-phone" type="tel" required autocomplete="tel">
+
+            <label for="reg-cep">CEP *</label>
+            <input id="reg-cep" type="text" required inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" maxlength="9">
+
+            <label for="reg-street">Rua *</label>
+            <input id="reg-street" type="text" required autocomplete="address-line1">
+
+            <label for="reg-number">Numero *</label>
+            <input id="reg-number" type="text" required autocomplete="address-line2" placeholder="Ex.: 123">
+
+            <label for="reg-neighborhood">Bairro *</label>
+            <input id="reg-neighborhood" type="text" required>
+
+            <label for="reg-city">Cidade *</label>
+            <input id="reg-city" type="text" required autocomplete="address-level2">
+
+            <label for="reg-state">Estado (UF) *</label>
+            <input id="reg-state" type="text" required maxlength="2" autocomplete="address-level1">
+
+            <label for="reg-email">E-mail *</label>
+            <input id="reg-email" type="email" required autocomplete="email">
+
+            <label for="reg-password">Senha *</label>
+            <input id="reg-password" type="password" required minlength="6" autocomplete="new-password">
+
+            <label for="reg-password-confirm">Confirmar senha *</label>
+            <input id="reg-password-confirm" type="password" required minlength="6" autocomplete="new-password">
+
+            <label for="reg-photo">Foto de perfil</label>
+            <input id="reg-photo" type="file" accept="image/*">
+
+            <div id="register-areas-host" class="pro-areas-host"></div>
+            <button class="btn full" type="submit">Criar conta</button>
+            <p class="form-hint">* Campos obrigatorios</p>
+          </form>
+
+          <form id="login-form" class="stack" hidden>
+            <label for="login-email">E-mail</label>
+            <input id="login-email" type="email" required autocomplete="email">
+            <label for="login-password">Senha</label>
+            <input id="login-password" type="password" required autocomplete="current-password">
+            <button class="btn full" type="submit">Entrar</button>
+          </form>
         </div>
 
-        <form id="register-form" class="stack">
-          <label for="reg-full-name">Nome completo *</label>
-          <input id="reg-full-name" type="text" required autocomplete="name">
-
-          <label for="reg-phone">Telefone *</label>
-          <input id="reg-phone" type="tel" required autocomplete="tel">
-
-          <label for="reg-cep">CEP *</label>
-          <input id="reg-cep" type="text" required inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" maxlength="9">
-
-          <label for="reg-street">Rua *</label>
-          <input id="reg-street" type="text" required autocomplete="address-line1">
-
-          <label for="reg-number">Numero *</label>
-          <input id="reg-number" type="text" required autocomplete="address-line2" placeholder="Ex.: 123">
-
-          <label for="reg-neighborhood">Bairro *</label>
-          <input id="reg-neighborhood" type="text" required>
-
-          <label for="reg-city">Cidade *</label>
-          <input id="reg-city" type="text" required autocomplete="address-level2">
-
-          <label for="reg-state">Estado (UF) *</label>
-          <input id="reg-state" type="text" required maxlength="2" autocomplete="address-level1">
-
-          <label for="reg-email">E-mail *</label>
-          <input id="reg-email" type="email" required autocomplete="email">
-
-          <label for="reg-password">Senha *</label>
-          <input id="reg-password" type="password" required minlength="6" autocomplete="new-password">
-
-          <label for="reg-password-confirm">Confirmar senha *</label>
-          <input id="reg-password-confirm" type="password" required minlength="6" autocomplete="new-password">
-
-          <label for="reg-photo">Foto de perfil</label>
-          <input id="reg-photo" type="file" accept="image/*">
-
-          <div id="register-areas-host" class="pro-areas-host"></div>
-          <button class="btn full" type="submit">Criar conta</button>
-          <p class="form-hint">* Campos obrigatorios</p>
-        </form>
-
-        <form id="login-form" class="stack" hidden>
-          <label for="login-email">E-mail</label>
-          <input id="login-email" type="email" required autocomplete="email">
-          <label for="login-password">Senha</label>
-          <input id="login-password" type="password" required autocomplete="current-password">
-          <button class="btn full" type="submit">Entrar</button>
-        </form>
-
+        <!-- Mostrado quando ESTÁ logado -->
         <div id="logged-box" class="logged-box" hidden>
           <p id="logged-text"></p>
-          <button id="logout-btn" class="btn btn-secondary" type="button">Sair</button>
+          <div style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.8rem">
+            <a href="dashboard.html" class="btn full">Ir para meu painel</a>
+            <button id="logout-btn" class="btn full" type="button"
+              style="background: var(--border); color: var(--text);">Sair da conta</button>
+          </div>
         </div>
       </section>
     </div>

@@ -50,9 +50,17 @@
               <option>Design e Tecnologia</option>
               <option>Saude e Bem-estar</option>
             </select>
+
+            <label for="client-name">Seu nome</label>
+            <input id="client-name" type="text" placeholder="Ex.: Joao Silva" required autocomplete="name">
+
+            <label for="client-phone">Seu telefone</label>
+            <input id="client-phone" type="tel" placeholder="Ex.: (11) 99999-9999" inputmode="numeric" required autocomplete="tel">
+
             <label for="cep-cliente">CEP</label>
-            <input id="cep-cliente" type="text" placeholder="Ex.: 08553-250" inputmode="numeric" maxlength="9" required>
+            <input id="cep-cliente" type="text" placeholder="Ex.: 08553-250" inputmode="numeric" maxlength="9" required autocomplete="postal-code">
             <p class="form-hint hero-geo-hint" id="cep-cidade-hint"></p>
+
             <button class="btn full" type="submit">Receber orcamentos gratis</button>
           </form>
           <small>Servico rapido, pratico e seguro.</small>
@@ -109,9 +117,9 @@
           </ul>
         </div>
         <article class="pro-form">
-          <h3>Cadastro em pagina dedicada</h3>
-          <p>Crie sua conta com e-mail e senha, informe endereco e foto de perfil para aparecer nas buscas por proximidade.</p>
-          <a class="btn full" href="prestador.html">Ir para cadastro do prestador</a>
+          <h3 id="pro-card-title">Cadastro em pagina dedicada</h3>
+          <p id="pro-card-desc">Crie sua conta com e-mail e senha, informe endereco e foto de perfil para aparecer nas buscas por proximidade.</p>
+          <a class="btn full" id="pro-card-btn" href="prestador.html">Ir para cadastro do prestador</a>
         </article>
       </div>
     </section>
@@ -145,20 +153,32 @@
     </button>
     <div id="theme-menu" class="theme-menu" hidden>
       <button class="theme-menu-item" type="button" data-theme-mode="light">
-        <span class="theme-item-icon" aria-hidden="true">☀</span>
-        <span>Tema claro</span>
+        <span class="theme-item-icon" aria-hidden="true">☀</span><span>Tema claro</span>
       </button>
       <button class="theme-menu-item" type="button" data-theme-mode="dark">
-        <span class="theme-item-icon" aria-hidden="true">☽</span>
-        <span>Tema escuro</span>
+        <span class="theme-item-icon" aria-hidden="true">☽</span><span>Tema escuro</span>
       </button>
       <button class="theme-menu-item" type="button" data-theme-mode="system">
-        <span class="theme-item-icon" aria-hidden="true">◐</span>
-        <span>Padrao do dispositivo</span>
+        <span class="theme-item-icon" aria-hidden="true">◐</span><span>Padrao do dispositivo</span>
       </button>
     </div>
   </div>
 
+  <script type="module">
+    import { supabase } from "./supabase-init.js";
+    if (supabase) {
+      supabase.auth.getUser().then(function({ data }) {
+        if (data?.user) {
+          const title = document.getElementById("pro-card-title");
+          const desc  = document.getElementById("pro-card-desc");
+          const btn   = document.getElementById("pro-card-btn");
+          if (title) title.textContent = "Acesse sua conta";
+          if (desc)  desc.hidden = true;
+          if (btn)   { btn.textContent = "Acesse seu painel"; btn.href = "dashboard.html"; }
+        }
+      });
+    }
+  </script>
   <script type="module" src="main.js"></script>
 </body>
 </html>
