@@ -242,12 +242,23 @@ elForm.addEventListener("submit", async e => {
     const { error: upErr } = await supabase.from("providers").update(updateData).eq("id", prov.id);
     if (upErr) throw upErr;
 
-    // Atualiza áreas
-    await supabase.from("provider_service_areas").delete().eq("provider_id", prov.id);
+    // Atualiza áreas — apaga tudo e reinsere
+    const { error: delErr } = await supabase
+      .from("provider_service_areas")
+      .delete()
+      .eq("provider_id", prov.id);
+    if (delErr) throw new Error("Erro ao remover áreas antigas: " + delErr.message);
+
     if (areaIds.length > 0) {
-      const links = areaIds.map(areaId => ({ provider_id: prov.id, area_id: areaId }));
-      const { error: aErr } = await supabase.from("provider_service_areas").insert(links);
-      if (aErr) throw aErr;
+      // Tenta primeiro com service_area_id, depois com area_id
+      let links = areaIds.map(areaId => ({ provider_id: prov.id, service_area_id: areaId }));
+      let { error: aErr } = await supabase.from("provider_service_areas").insert(links);
+      if (aErr) {
+        // Fallback: tenta com area_id
+        links = areaIds.map(areaId => ({ provider_id: prov.id, area_id: areaId }));
+        const { error: aErr2 } = await supabase.from("provider_service_areas").insert(links);
+        if (aErr2) throw new Error("Erro ao salvar áreas: " + aErr2.message);
+      }
     }
 
     elSuccess.style.display = "block";

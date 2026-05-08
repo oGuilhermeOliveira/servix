@@ -141,6 +141,7 @@ function requestMatchesProvider(requestCategory, providerSlugs) {
 
 function renderRequests(requests, provider, providerSlugs) {
   elRequestsList.innerHTML = "";
+  const providerName = provider?.full_name || "prestador";
 
   // Filtra apenas os pedidos que batem com as áreas do prestador
   const matching = requests.filter(r => requestMatchesProvider(r.category, providerSlugs));
@@ -160,6 +161,11 @@ function renderRequests(requests, provider, providerSlugs) {
   matching.forEach(function (req) {
     const card = document.createElement("div");
     card.className = "request-card";
+    const clientPhoneDigits = (req.client_phone || "").replace(/\D/g, "");
+    const whatsappMessage = encodeURIComponent(
+      `Olá meu nome é ${providerName}, recebi seu pedido. Vamos conversar!`
+    );
+    const whatsappUrl = `https://wa.me/${clientPhoneDigits}?text=${whatsappMessage}`;
 
     // Distância
     let distHtml = "";
@@ -181,7 +187,7 @@ function renderRequests(requests, provider, providerSlugs) {
       </div>
       ${req.client_name ? `<div class="request-location"><span>👤</span><span>${req.client_name}</span></div>` : ""}
       ${req.client_phone
-        ? `<a class="btn btn-small provider-tel" href="tel:${req.client_phone.replace(/\D/g, "")}" style="margin-top:0.6rem;display:inline-block">📞 ${req.client_phone}</a>`
+        ? `<a class="btn btn-small provider-tel" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer" style="margin-top:0.6rem;display:inline-block">📞 ${req.client_phone}</a>`
         : ""
       }`;
 

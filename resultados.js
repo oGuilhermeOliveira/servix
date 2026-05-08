@@ -26,6 +26,15 @@ function readSearchSession() {
   try { return JSON.parse(sessionStorage.getItem(SESSION_SEARCH_KEY)); } catch { return null; }
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // --- Tema ---
 const THEME_KEY = "servix-theme-mode";
 const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -76,10 +85,10 @@ async function run() {
   if (subtitleEl) {
     const cepFmt = search.cep ? ` (CEP ${search.cep.slice(0,5)}-${search.cep.slice(5)})` : "";
     const locText = search.city ? `Região: ${search.city}${cepFmt}.` : "";
-    const geoHint = hasCoords
-      ? " Ordenados pela distância até você."
+    const geoHintHtml = hasCoords
+      ? " Ordenados pela distância até você.<br>Em breve você receberá um orçamento."
       : " Informe um CEP válido para ordenar por distância.";
-    subtitleEl.textContent = locText + geoHint;
+    subtitleEl.innerHTML = escapeHtml(locText) + geoHintHtml;
   }
 
   if (!supabase) {
@@ -152,18 +161,18 @@ async function run() {
       const km = distanceKm < 10 ? distanceKm.toFixed(1) : Math.round(distanceKm);
       distText = ` · 📍 ${km} km de você`;
     } else if (hasCoords) {
-      distText = " · distância indisponível";
+      distText = " ";
     }
     meta.textContent = (loc || "Local não informado") + distText;
     card.appendChild(meta);
 
-    if (row.phone) {
-      const tel = document.createElement("a");
-      tel.className = "btn btn-small provider-tel";
-      tel.href = "tel:" + row.phone.replace(/\D/g, "");
-      tel.textContent = "Ligar";
-      card.appendChild(tel);
-    }
+    // if (row.phone) {
+    //   const tel = document.createElement("a");
+    //   tel.className = "btn btn-small provider-tel";
+    //   tel.href = "tel:" + row.phone.replace(/\D/g, "");
+    //   tel.textContent = "Ligar";
+    //   card.appendChild(tel);
+    // }
 
     listEl.appendChild(card);
   });
