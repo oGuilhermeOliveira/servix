@@ -74,7 +74,7 @@ const emptyEl    = document.getElementById("results-empty");
 async function run() {
   const search = readSearchSession();
   if (!search || !search.areaSlugs || search.areaSlugs.length === 0) {
-    window.location.replace("index.html");
+    window.location.replace("../index.html");
     return;
   }
 

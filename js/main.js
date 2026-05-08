@@ -203,6 +203,6 @@ if (quickForm) {
       }));
     } catch (e) { console.warn("sessionStorage:", e); }
 
-    window.location.href = "resultados.html";
+    window.location.href = "janelas/resultados.html";
   });
 }

@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="assets/abelhaWhBG.png">
   <title>Servix Solutions | Conectando pessoas e profissionais</title>
   <meta name="description" content="Encontre profissionais qualificados para serviços do dia a dia. Rápido, prático e seguro com a Servix Solutions.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <header class="topbar">
@@ -17,7 +18,7 @@
       <nav class="menu">
         <a href="#servicos">Servicos</a>
         <a href="#como-funciona">Como funciona</a>
-        <a href="prestador.html">Seja profissional</a>
+        <a href="janelas/prestador.html">Seja profissional</a>
         <a href="#depoimentos">Depoimentos</a>
       </nav>
       <div class="nav-actions">
@@ -35,7 +36,7 @@
           <p class="lead">Solicite em minutos, receba ate 4 orcamentos e escolha com seguranca. Tudo no estilo da colmeia: organizado, rapido e colaborativo.</p>
           <div class="hero-actions">
             <a class="btn" href="#pedido">Buscar servico</a>
-            <a class="btn btn-secondary" href="prestador.html">Quero ser profissional</a>
+            <a class="btn btn-secondary" href="janelas/prestador.html">Quero ser profissional</a>
           </div>
           <p class="trust">4.8 de avaliacao media | Atendimento em milhares de cidades</p>
         </div>
@@ -118,7 +119,7 @@
         <article class="pro-form">
           <h3 id="pro-card-title">Cadastro em pagina dedicada</h3>
           <p id="pro-card-desc">Crie sua conta com e-mail e senha, informe endereco e foto de perfil para aparecer nas buscas por proximidade.</p>
-          <a class="btn full" id="pro-card-btn" href="prestador.html">Ir para cadastro do prestador</a>
+          <a class="btn full" id="pro-card-btn" href="janelas/prestador.html">Ir para cadastro do prestador</a>
         </article>
       </div>
     </section>
@@ -164,7 +165,7 @@
   </div>
 
   <script type="module">
-    import { supabase } from "./supabase-init.js";
+    import { supabase } from "./js/supabase-init.js";
     if (supabase) {
       supabase.auth.getUser().then(function({ data }) {
         if (data?.user) {
@@ -173,11 +174,11 @@
           const btn   = document.getElementById("pro-card-btn");
           if (title) title.textContent = "Acesse sua conta";
           if (desc)  desc.hidden = true;
-          if (btn)   { btn.textContent = "Acesse seu painel"; btn.href = "dashboard.html"; }
+          if (btn)   { btn.textContent = "Acesse seu painel"; btn.href = "janelas/dashboard.html"; }
         }
       });
     }
   </script>
-  <script type="module" src="main.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
