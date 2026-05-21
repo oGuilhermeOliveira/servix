@@ -31,9 +31,9 @@
     <section class="hero">
       <div class="container hero-grid">
         <div>
-          <p class="badge">Mais de 500 tipos de servicos em um so lugar</p>
-          <h1>Conectando quem precisa de servicos a profissionais qualificados</h1>
-          <p class="lead">Solicite em minutos, receba ate 4 orcamentos e escolha com seguranca. Tudo no estilo da colmeia: organizado, rapido e colaborativo.</p>
+          <p class="badge">Servicos para sua casa em um so lugar</p>
+          <h1>Profissionais para reforma, limpeza e reparos na sua casa</h1>
+          <p class="lead">Encanador, diarista, eletricista, pintor e muito mais perto de voce. Rapido, pratico e seguro.</p>
           <div class="hero-actions">
             <a class="btn" href="#pedido">Buscar servico</a>
             <a class="btn btn-secondary" href="janelas/prestador.html">Quero ser profissional</a>
@@ -43,14 +43,29 @@
         <div class="hero-card">
           <h2>Qual servico voce precisa hoje?</h2>
           <form id="quick-form">
-            <label for="categoria">Categoria</label>
-            <select id="categoria" required>
-              <option value="">Selecione uma categoria</option>
-              <option>Reformas e Reparos</option>
-              <option>Servicos Domesticos</option>
-              <option>Design e Tecnologia</option>
-              <option>Saude e Bem-estar</option>
-            </select>
+            <label for="servico-busca">O que voce precisa?</label>
+            <div class="service-search" id="service-search" data-service-search>
+              <span class="service-search-icon" aria-hidden="true">⌕</span>
+              <input
+                id="servico-busca"
+                type="text"
+                data-service-input
+                placeholder="Ex.: encanador, diarista, pintor, ar condicionado..."
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="servico-sugestoes"
+                required
+              >
+              <button type="button" class="service-search-clear" data-service-clear aria-label="Limpar busca" hidden>×</button>
+              <ul id="servico-sugestoes" class="service-suggest-list" data-service-list role="listbox" hidden></ul>
+              <input type="hidden" data-service-slug name="area_slug">
+              <input type="hidden" data-service-id name="service_id">
+              <input type="hidden" data-service-label name="service_label">
+            </div>
+            <p class="form-hint">Servicos para sua casa: reforma, limpeza, reparos e mais.</p>
 
             <label for="client-name">Seu nome</label>
             <input id="client-name" type="text" placeholder="Ex.: Joao Silva" required autocomplete="name">
@@ -62,7 +77,7 @@
             <input id="cep-cliente" type="text" placeholder="Ex.: 08553-250" inputmode="numeric" maxlength="9" required autocomplete="postal-code">
             <p class="form-hint hero-geo-hint" id="cep-cidade-hint"></p>
 
-            <button class="btn full" type="submit">Receber orcamentos gratis</button>
+            <button class="btn full" type="submit">Ver profissionais perto de mim</button>
           </form>
           <small>Servico rapido, pratico e seguro.</small>
         </div>
@@ -71,15 +86,15 @@
 
     <section id="servicos" class="section">
       <div class="container">
-        <h2>Principais categorias</h2>
-        <p class="section-sub">Explore as areas mais buscadas na rede Servix.</p>
+        <h2>Servicos para casa</h2>
+        <p class="section-sub">Os mais pedidos para manter, reformar e cuidar do seu lar.</p>
         <div class="cards">
-          <article class="card"><h3>Reformas e Reparos</h3><p>Eletricista, encanador, pintor e muito mais.</p></article>
-          <article class="card"><h3>Servicos Domesticos</h3><p>Diarista, passadeira, cuidador e apoio para o lar.</p></article>
-          <article class="card"><h3>Design e Tecnologia</h3><p>Sites, identidade visual, marketing e suporte.</p></article>
-          <article class="card"><h3>Aulas e Consultoria</h3><p>Idiomas, reforco, financeiro e desenvolvimento.</p></article>
-          <article class="card"><h3>Eventos e Festa</h3><p>Buffet, DJ, fotografo e organizacao completa.</p></article>
-          <article class="card"><h3>Saude e Bem-estar</h3><p>Profissionais para corpo, mente e qualidade de vida.</p></article>
+          <article class="card"><h3>Reformas e Reparos</h3><p>Eletricista, encanador, pintor, pedreiro e marido de aluguel.</p></article>
+          <article class="card"><h3>Limpeza e Lar</h3><p>Diarista, passadeira, cozinheira, babá e cuidador.</p></article>
+          <article class="card"><h3>Instalacoes</h3><p>Ar condicionado, cameras, redes de protecao e Wi-Fi.</p></article>
+          <article class="card"><h3>Eletrodomesticos</h3><p>Geladeira, fogao, maquina de lavar e micro-ondas.</p></article>
+          <article class="card"><h3>Jardim e Externa</h3><p>Jardineiro, dedetizacao, telhado e impermeabilizacao.</p></article>
+          <article class="card"><h3>Conforto em Casa</h3><p>Massagem, manicure e cabeleireiro a domicilio.</p></article>
         </div>
       </div>
     </section>

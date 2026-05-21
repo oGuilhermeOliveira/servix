@@ -3,7 +3,7 @@ import { supabase } from "./supabase-init.js";
 const SESSION_SEARCH_KEY = "servix:last-search";
 
 function haversineKm(lat1, lng1, lat2, lng2) {
-  const R    = 6371;
+  const R = 6371;
   const toRad = d => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
@@ -26,13 +26,33 @@ function readSearchSession() {
   try { return JSON.parse(sessionStorage.getItem(SESSION_SEARCH_KEY)); } catch { return null; }
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+function writeSearchSession(data) {
+  try { sessionStorage.setItem(SESSION_SEARCH_KEY, JSON.stringify(data)); } catch { /* */ }
+}
+
+async function submitRequest(search) {
+  if (!supabase || search.requestSubmitted) return null;
+
+  const payload = {
+    category: search.category || "Servico",
+    city: search.city || "",
+    client_lat: search.clientLat ?? null,
+    client_lng: search.clientLng ?? null,
+    client_name: search.clientName || null,
+    client_phone: search.clientPhone || null,
+    area_slug: search.areaSlug || search.areaSlugs?.[0] || null,
+  };
+
+  let { error } = await supabase.from("service_requests").insert(payload);
+  if (error && payload.area_slug) {
+    const fallback = { ...payload };
+    delete fallback.area_slug;
+    ({ error } = await supabase.from("service_requests").insert(fallback));
+  }
+  if (!error) {
+    writeSearchSession({ ...search, pendingRequest: false, requestSubmitted: true });
+  }
+  return error;
 }
 
 // --- Tema ---
@@ -52,43 +72,63 @@ function updateThemeSelection(m) {
     i.setAttribute("aria-pressed", a ? "true" : "false");
   });
 }
-function closeThemeMenu() { if (themeMenu) themeMenu.hidden = true; if (themeFabButton) themeFabButton.setAttribute("aria-expanded","false"); }
+function closeThemeMenu() { if (themeMenu) themeMenu.hidden = true; if (themeFabButton) themeFabButton.setAttribute("aria-expanded", "false"); }
 
 if (themeSwitcher && themeFabButton && themeMenu) {
   let cur = localStorage.getItem(THEME_KEY) || "system";
-  if (!["light","dark","system"].includes(cur)) cur = "system";
+  if (!["light", "dark", "system"].includes(cur)) cur = "system";
   applyTheme(cur); updateThemeSelection(cur);
   themeFabButton.addEventListener("click", () => { const o = !themeMenu.hidden; themeMenu.hidden = o; themeFabButton.setAttribute("aria-expanded", o ? "false" : "true"); });
-  themeMenuItems.forEach(i => i.addEventListener("click", () => { cur = i.dataset.themeMode; localStorage.setItem(THEME_KEY, cur); applyTheme(cur); updateThemeSelection(cur); closeThemeMenu(); }));
+  themeMenuItems.forEach(i => i.addEventListener("click", () => {
+    cur = i.dataset.themeMode;
+    localStorage.setItem(THEME_KEY, cur);
+    applyTheme(cur);
+    updateThemeSelection(cur);
+    closeThemeMenu();
+  }));
   document.addEventListener("click", e => { if (!themeSwitcher.contains(e.target)) closeThemeMenu(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeThemeMenu(); });
   mediaQuery.addEventListener("change", () => { if (cur === "system") applyTheme("system"); });
 }
 
 // --- Resultados ---
-const titleEl    = document.getElementById("results-title");
+const titleEl = document.getElementById("results-title");
 const subtitleEl = document.getElementById("results-subtitle");
-const listEl     = document.getElementById("results-list");
-const emptyEl    = document.getElementById("results-empty");
+const listEl = document.getElementById("results-list");
+const emptyEl = document.getElementById("results-empty");
 
 async function run() {
-  const search = readSearchSession();
-  if (!search || !search.areaSlugs || search.areaSlugs.length === 0) {
+  let search = readSearchSession();
+  const slugs = search?.areaSlugs?.length
+    ? search.areaSlugs
+    : search?.areaSlug
+      ? [search.areaSlug]
+      : [];
+
+  if (!search || slugs.length === 0) {
     window.location.replace("../index.html");
     return;
   }
 
-  if (titleEl) titleEl.textContent = "Profissionais em " + (search.category || "sua categoria");
+  if (search.pendingRequest && !search.requestSubmitted) {
+    await submitRequest(search);
+    search = readSearchSession() || search;
+  }
+
+  const serviceLabel = search.category || "seu servico";
+  const groupLabel = search.serviceGroup ? ` (${search.serviceGroup})` : "";
+
+  if (titleEl) titleEl.textContent = "Profissionais para " + serviceLabel;
 
   const hasCoords = search.clientLat != null && search.clientLng != null;
 
   if (subtitleEl) {
-    const cepFmt = search.cep ? ` (CEP ${search.cep.slice(0,5)}-${search.cep.slice(5)})` : "";
-    const locText = search.city ? `Região: ${search.city}${cepFmt}.` : "";
-    const geoHintHtml = hasCoords
-      ? " Ordenados pela distância até você.<br>Em breve você receberá um orçamento."
-      : " Informe um CEP válido para ordenar por distância.";
-    subtitleEl.innerHTML = escapeHtml(locText) + geoHintHtml;
+    const cepFmt = search.cep ? ` (CEP ${search.cep.slice(0, 5)}-${search.cep.slice(5)})` : "";
+    const locText = search.city ? `Regiao: ${search.city}${cepFmt}. ` : "";
+    const geoHint = hasCoords
+      ? "Ordenados pela distancia ate voce. Em breve voce recebera orcamentos."
+      : "Profissionais disponiveis na sua busca. Em breve voce recebera orcamentos.";
+    subtitleEl.textContent = locText + groupLabel.trim() + (groupLabel ? ". " : "") + geoHint;
   }
 
   if (!supabase) {
@@ -101,13 +141,13 @@ async function run() {
     .select("id, full_name, phone, city, state, lat, lng, avatar_url, provider_service_areas(service_areas(slug,name))");
 
   if (error) {
-    if (listEl) listEl.innerHTML = '<p class="results-error">Não foi possível carregar profissionais.</p>';
+    if (listEl) listEl.innerHTML = '<p class="results-error">Nao foi possivel carregar profissionais.</p>';
     return;
   }
 
-  const wanted = new Set(search.areaSlugs);
+  const wanted = new Set(slugs);
 
-  let list = (rows || [])
+  const list = (rows || [])
     .filter(row => providerSlugs(row).some(s => wanted.has(s)))
     .map(row => {
       let distanceKm = null;
@@ -125,7 +165,7 @@ async function run() {
 
   if (list.length === 0) {
     if (emptyEl) emptyEl.hidden = false;
-    if (listEl)  listEl.innerHTML = "";
+    if (listEl) listEl.innerHTML = "";
     return;
   }
 
@@ -139,7 +179,8 @@ async function run() {
 
     if (row.avatar_url) {
       const img = document.createElement("img");
-      img.src = row.avatar_url; img.alt = "Foto de " + (row.full_name || "prestador");
+      img.src = row.avatar_url;
+      img.alt = "Foto de " + (row.full_name || "prestador");
       img.className = "provider-avatar";
       card.appendChild(img);
     }
@@ -159,23 +200,18 @@ async function run() {
     let distText = "";
     if (distanceKm != null) {
       const km = distanceKm < 10 ? distanceKm.toFixed(1) : Math.round(distanceKm);
-      distText = ` · 📍 ${km} km de você`;
-    } else if (hasCoords) {
-      distText = " ";
+      distText = ` · ${km} km de voce`;
     }
-    meta.textContent = (loc || "Local não informado") + distText;
+    meta.textContent = (loc || "Local nao informado") + distText;
     card.appendChild(meta);
-
-    // if (row.phone) {
-    //   const tel = document.createElement("a");
-    //   tel.className = "btn btn-small provider-tel";
-    //   tel.href = "tel:" + row.phone.replace(/\D/g, "");
-    //   tel.textContent = "Ligar";
-    //   card.appendChild(tel);
-    // }
 
     listEl.appendChild(card);
   });
 }
 
-run();
+run().catch((err) => {
+  console.error("resultados:", err);
+  if (listEl) {
+    listEl.innerHTML = '<p class="results-error">Erro ao carregar a pagina. <a href="../index.html">Faca uma nova busca</a>.</p>';
+  }
+});

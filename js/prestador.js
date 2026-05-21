@@ -4,6 +4,7 @@ const THEME_KEY = "servix-theme-mode";
 const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const registerForm = document.getElementById("register-form");
 const loginForm = document.getElementById("login-form");
+const forgotForm = document.getElementById("forgot-form");
 const registerTab = document.getElementById("tab-register");
 const loginTab = document.getElementById("tab-login");
 const registerAreasHost = document.getElementById("register-areas-host");
@@ -88,9 +89,10 @@ function setupThemeSwitcher() {
 function setTab(mode) {
   const registerMode = mode === "register";
   registerTab.classList.toggle("active", registerMode);
-  loginTab.classList.toggle("active", !registerMode);
+  loginTab.classList.toggle("active", !registerMode && mode !== "forgot");
   registerForm.hidden = !registerMode;
-  loginForm.hidden = registerMode;
+  loginForm.hidden = registerMode || mode === "forgot";
+  if (forgotForm) forgotForm.hidden = mode !== "forgot";
 }
 
 function normalizeCep(raw) {
@@ -321,18 +323,15 @@ async function refreshAuthState() {
   if (!supabase) return;
   const result = await supabase.auth.getUser();
   const user = result.data.user;
-  const guestEl = document.getElementById("auth-guest");
   if (user) {
     try {
       await ensureProviderRow(user, user.email || "");
     } catch (error) {
       console.error("ensureProviderRow", error);
     }
-    if (guestEl) guestEl.hidden = true;
     loggedBox.hidden = false;
-    loggedText.textContent = "Você está logado como: " + user.email;
+    loggedText.textContent = "Logado como: " + user.email;
   } else {
-    if (guestEl) guestEl.hidden = false;
     loggedBox.hidden = true;
     loggedText.textContent = "";
   }
@@ -417,9 +416,10 @@ registerForm.addEventListener("submit", async function (event) {
   try {
     await ensureProviderRow(sessionUser, formData.email);
     await finalizeProfileForUser(sessionUser, formData.email, formData);
+    showMessage("register-form", "Cadastro concluido com sucesso. Voce ja esta logado.", false);
     registerForm.reset();
     clearPendingRegistration();
-    window.location.href = "dashboard.html";
+    await refreshAuthState();
   } catch (error) {
     showMessage("register-form", error.message || "Erro ao salvar cadastro.", true);
   }
@@ -481,16 +481,66 @@ loginForm.addEventListener("submit", async function (event) {
     }
   }
 
-  // Redireciona ao dashboard após login bem-sucedido
-  window.location.href = "dashboard.html";
+  if (!completedNow) {
+    showMessage("login-form", "Login realizado com sucesso.", false);
+  }
+  await refreshAuthState();
 });
 
 logoutBtn.addEventListener("click", async function () {
   if (!supabase) return;
   await supabase.auth.signOut();
   await refreshAuthState();
-  setTab("login");
 });
+
+// --- Esqueci a senha ---
+const btnForgot    = document.getElementById("btn-forgot");
+const btnBackLogin = document.getElementById("btn-back-login");
+
+if (btnForgot) {
+  btnForgot.addEventListener("click", function () {
+    setTab("forgot");
+    const prev = forgotForm?.querySelector(".form-message");
+    if (prev) prev.remove();
+  });
+}
+
+if (btnBackLogin) {
+  btnBackLogin.addEventListener("click", function () {
+    setTab("login");
+  });
+}
+
+if (forgotForm) {
+  forgotForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    if (!supabase) return;
+
+    const email     = document.getElementById("forgot-email")?.value?.trim() || "";
+    const submitBtn = forgotForm.querySelector('button[type="submit"]');
+
+    submitBtn.disabled    = true;
+    submitBtn.textContent = "Enviando...";
+
+    // redirectTo aponta para janelas/redefinir-senha.html (funciona local e na Vercel)
+    const redirectTo = window.location.origin + "/janelas/redefinir-senha.html";
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+
+    submitBtn.disabled    = false;
+    submitBtn.textContent = "Enviar link de recuperação";
+
+    if (error) {
+      showMessage("forgot-form", "Erro: " + error.message, true);
+    } else {
+      showMessage(
+        "forgot-form",
+        "✅ Link enviado! Verifique sua caixa de entrada (e a pasta de spam).",
+        false
+      );
+    }
+  });
+}
 
 setupThemeSwitcher();
 loadAreas();

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redefinir Senha | Servix Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="../index.html" class="brand">Servix <span>Solutions</span></a>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container" style="max-width:480px">
+      <div class="auth-card">
+        <h1 style="font-size:1.4rem;margin:0 0 0.4rem">Redefinir senha</h1>
+        <p class="section-sub" style="margin:0 0 1rem">Escolha uma nova senha para sua conta.</p>
+
+        <div id="reset-loading" style="color:var(--text-muted);padding:1rem 0">Verificando link...</div>
+
+        <form id="reset-form" class="stack" hidden>
+          <label for="new-password">Nova senha *</label>
+          <input id="new-password" type="password" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+
+          <label for="new-password-confirm">Confirmar nova senha *</label>
+          <input id="new-password-confirm" type="password" required minlength="6" autocomplete="new-password" placeholder="Repita a senha">
+
+          <button class="btn full" type="submit" style="margin-top:1rem">Salvar nova senha</button>
+        </form>
+
+        <div id="reset-error" hidden style="color:var(--danger,#c0392b);font-weight:700;padding:1rem 0">
+          Link inválido ou expirado. <a href="prestador.html" style="color:var(--accent)">Solicite um novo link.</a>
+        </div>
+
+        <div id="reset-success" hidden style="padding:1rem 0;text-align:center">
+          <p style="font-weight:700;color:var(--primary)">✅ Senha redefinida com sucesso!</p>
+          <a href="dashboard.html" class="btn" style="margin-top:1rem;display:inline-block">Ir para o painel</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { supabase } from "../js/supabase-init.js";
+
+    const elLoading = document.getElementById("reset-loading");
+    const elForm    = document.getElementById("reset-form");
+    const elError   = document.getElementById("reset-error");
+    const elSuccess = document.getElementById("reset-success");
+
+    // O Supabase envia o token na URL como hash (#access_token=...)
+    // O supabase-js detecta automaticamente via onAuthStateChange
+    async function init() {
+      if (!supabase) { showError(); return; }
+
+      // Aguarda o supabase processar o hash da URL
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        elLoading.hidden = true;
+        elForm.hidden    = false;
+      } else {
+        // Tenta via onAuthStateChange (fluxo PKCE)
+        supabase.auth.onAuthStateChange((event, session) => {
+          if (event === "PASSWORD_RECOVERY" && session) {
+            elLoading.hidden = true;
+            elForm.hidden    = false;
+          }
+        });
+        // Timeout: se não resolver em 3s, mostra erro
+        setTimeout(() => {
+          if (!elForm.hidden) return;
+          elLoading.hidden = true;
+          elError.hidden   = false;
+        }, 3000);
+      }
+    }
+
+    elForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const pass    = document.getElementById("new-password").value;
+      const confirm = document.getElementById("new-password-confirm").value;
+
+      const prev = elForm.querySelector(".form-message");
+      if (prev) prev.remove();
+
+      if (pass !== confirm) {
+        showMsg("As senhas não coincidem.", true);
+        return;
+      }
+      if (pass.length < 6) {
+        showMsg("A senha deve ter pelo menos 6 caracteres.", true);
+        return;
+      }
+
+      const btn = elForm.querySelector('button[type="submit"]');
+      btn.disabled    = true;
+      btn.textContent = "Salvando...";
+
+      const { error } = await supabase.auth.updateUser({ password: pass });
+
+      btn.disabled    = false;
+      btn.textContent = "Salvar nova senha";
+
+      if (error) {
+        showMsg("Erro: " + error.message, true);
+      } else {
+        elForm.hidden    = true;
+        elSuccess.hidden = false;
+      }
+    });
+
+    function showMsg(msg, isError) {
+      const prev = elForm.querySelector(".form-message");
+      if (prev) prev.remove();
+      const p = document.createElement("p");
+      p.className   = "form-message";
+      p.textContent = msg;
+      p.style.cssText = `margin-top:.8rem;font-weight:700;color:${isError ? "var(--danger,#c0392b)" : "var(--primary)"}`;
+      elForm.appendChild(p);
+    }
+
+    init();
+  </script>
+</body>
+</html>

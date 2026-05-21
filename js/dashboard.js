@@ -124,18 +124,22 @@ function renderProfile(provider, areas) {
 
 // Para cada categoria hero, quais slugs ela representa
 const CATEGORY_SLUG_MAP = {
-  "Reformas e Reparos": ["encanador", "pintor", "eletricista", "pedreiro", "marceneiro", "jardineiro", "ar_condicionado"],
-  "Servicos Domesticos": ["diarista"],
-  "Design e Tecnologia": ["design", "informatica", "fotografo"],
-  "Saude e Bem-estar": ["bem_estar"],
+  "Reformas e Reparos": [
+    "encanador", "pintor", "eletricista", "pedreiro", "marceneiro", "jardineiro",
+    "ar_condicionado", "desentupidor", "marido_aluguel", "vidraceiro", "gesso_drywall",
+    "serralheria", "redes_protecao", "tapeceiro", "dedetizador", "seguranca_eletronica",
+    "eletrodomesticos", "chaveiro", "limpeza_pos_obra", "impermeabilizacao", "arquiteto",
+  ],
+  "Servicos Domesticos": ["diarista", "passadeira", "cozinheira", "baba", "cuidador"],
+  "Manutencao do Lar": ["informatica", "redes_cabeamento", "bem_estar", "manicure", "cabeleireiro"],
+  "Servicos Domesticos e Lar": ["diarista", "passadeira", "cozinheira", "baba", "cuidador", "informatica", "redes_cabeamento", "bem_estar", "manicure", "cabeleireiro"],
 };
 
-// Retorna true se qualquer slug do prestador está coberto pela categoria do pedido
-function requestMatchesProvider(requestCategory, providerSlugs) {
+// Retorna true se o pedido bate com as áreas do prestador
+function requestMatchesProvider(request, providerSlugs) {
   const slugSet = new Set(providerSlugs);
-  // Slugs que a categoria do pedido representa
-  const categorySlugs = CATEGORY_SLUG_MAP[requestCategory] || [];
-  // Basta um slug em comum
+  if (request.area_slug) return slugSet.has(request.area_slug);
+  const categorySlugs = CATEGORY_SLUG_MAP[request.category] || [];
   return categorySlugs.some(s => slugSet.has(s));
 }
 
@@ -144,7 +148,7 @@ function renderRequests(requests, provider, providerSlugs) {
   const providerName = provider?.full_name || "prestador";
 
   // Filtra apenas os pedidos que batem com as áreas do prestador
-  const matching = requests.filter(r => requestMatchesProvider(r.category, providerSlugs));
+  const matching = requests.filter(r => requestMatchesProvider(r, providerSlugs));
 
   if (matching.length === 0) {
     elRequestsList.innerHTML = `
@@ -240,7 +244,7 @@ async function init() {
   // Buscar todas as requisições de serviço
   const { data: requests, error: reqError } = await supabase
     .from("service_requests")
-    .select("id, category, city, client_lat, client_lng, client_name, client_phone, created_at")
+    .select("id, category, area_slug, city, client_lat, client_lng, client_name, client_phone, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 

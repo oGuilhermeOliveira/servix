@@ -36,9 +36,12 @@ create table if not exists public.provider_service_areas (
 create table if not exists public.service_requests (
   id uuid primary key default gen_random_uuid(),
   category text not null,
+  area_slug text,
   city text not null,
   client_lat double precision,
   client_lng double precision,
+  client_name text,
+  client_phone text,
   created_at timestamptz not null default now()
 );
 
@@ -56,7 +59,39 @@ insert into public.service_areas (slug, name) values
   ('design', 'Design'),
   ('fotografo', 'Fotógrafo'),
   ('buffet', 'Buffet / gastronomia'),
-  ('bem_estar', 'Bem-estar / Qualidade de vida')
+  ('bem_estar', 'Bem-estar / Qualidade de vida'),
+  ('desentupidor', 'Desentupidor'),
+  ('marido_aluguel', 'Marido de aluguel'),
+  ('vidraceiro', 'Vidraceiro'),
+  ('cuidador', 'Cuidador de pessoas'),
+  ('gesso_drywall', 'Gesso e drywall'),
+  ('eletrodomesticos', 'Assistência eletrodomésticos'),
+  ('baba', 'Babá'),
+  ('serralheria', 'Serralheria e solda'),
+  ('redes_cabeamento', 'Cabeamento e redes'),
+  ('desenvolvimento', 'Sites e sistemas'),
+  ('seguranca_eletronica', 'Segurança eletrônica'),
+  ('cozinheira', 'Cozinheira'),
+  ('manicure', 'Manicure e pedicure'),
+  ('personal_trainer', 'Personal trainer'),
+  ('cabeleireiro', 'Cabeleireiros'),
+  ('nutricionista', 'Nutricionista'),
+  ('dedetizador', 'Dedetizador'),
+  ('motorista', 'Motorista'),
+  ('arquiteto', 'Arquitetos'),
+  ('marketing', 'Marketing online'),
+  ('aulas_idiomas', 'Aula de idiomas'),
+  ('passadeira', 'Passadeira'),
+  ('redes_protecao', 'Redes de proteção'),
+  ('psicologo', 'Psicólogo'),
+  ('contador', 'Contador'),
+  ('tapeceiro', 'Tapeceiro'),
+  ('bartender', 'Bartenders'),
+  ('audio_video', 'Áudio e vídeo'),
+  ('engenheiro', 'Engenheiro'),
+  ('chaveiro', 'Chaveiro'),
+  ('limpeza_pos_obra', 'Limpeza pós-obra'),
+  ('impermeabilizacao', 'Impermeabilização e telhado')
 on conflict (slug) do nothing;
 
 -- Cadastro atômico: prestador + vínculos (evita abuso na tabela de junção)
