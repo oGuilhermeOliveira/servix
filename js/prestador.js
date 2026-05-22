@@ -5,6 +5,7 @@ const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const registerForm = document.getElementById("register-form");
 const loginForm = document.getElementById("login-form");
 const forgotForm = document.getElementById("forgot-form");
+const resetForm = document.getElementById("reset-form");
 const registerTab = document.getElementById("tab-register");
 const loginTab = document.getElementById("tab-login");
 const registerAreasHost = document.getElementById("register-areas-host");
@@ -89,10 +90,11 @@ function setupThemeSwitcher() {
 function setTab(mode) {
   const registerMode = mode === "register";
   registerTab.classList.toggle("active", registerMode);
-  loginTab.classList.toggle("active", !registerMode && mode !== "forgot");
+  loginTab.classList.toggle("active", !registerMode && mode !== "forgot" && mode !== "reset");
   registerForm.hidden = !registerMode;
-  loginForm.hidden = registerMode || mode === "forgot";
+  loginForm.hidden = registerMode || mode === "forgot" || mode === "reset";
   if (forgotForm) forgotForm.hidden = mode !== "forgot";
+  if (resetForm)  resetForm.hidden  = mode !== "reset";
 }
 
 function normalizeCep(raw) {
@@ -522,8 +524,8 @@ if (forgotForm) {
     submitBtn.disabled    = true;
     submitBtn.textContent = "Enviando...";
 
-    // redirectTo aponta para janelas/redefinir-senha.html (funciona local e na Vercel)
-    const redirectTo = window.location.origin + "/janelas/redefinir-senha.html";
+    // redirectTo aponta para esta mesma página
+    const redirectTo = window.location.href.split("#")[0];
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
@@ -539,6 +541,41 @@ if (forgotForm) {
         false
       );
     }
+  });
+}
+
+// --- Nova senha (chegou pelo link do e-mail) ---
+if (resetForm) {
+  resetForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    if (!supabase) return;
+    const pass    = document.getElementById("reset-password")?.value || "";
+    const confirm = document.getElementById("reset-password-confirm")?.value || "";
+    const btn     = resetForm.querySelector('button[type="submit"]');
+    const prev    = resetForm.querySelector(".form-message");
+    if (prev) prev.remove();
+
+    if (pass !== confirm) {
+      showMessage("reset-form", "As senhas não coincidem.", true);
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Salvando...";
+    const { error } = await supabase.auth.updateUser({ password: pass });
+    btn.disabled = false; btn.textContent = "Salvar nova senha";
+
+    if (error) {
+      showMessage("reset-form", "Erro: " + error.message, true);
+    } else {
+      showMessage("reset-form", "✅ Senha alterada! Redirecionando...", false);
+      setTimeout(() => window.location.href = "dashboard.html", 2000);
+    }
+  });
+}
+
+// Detecta chegada pelo link de recuperação
+if (supabase) {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY") setTab("reset");
   });
 }
 

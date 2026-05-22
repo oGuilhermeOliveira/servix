@@ -75,15 +75,25 @@
             </p>
           </form>
 
-          <!-- Recuperação de senha -->
+          <!-- Enviar link de recuperação -->
           <form id="forgot-form" class="stack" hidden>
-            <p style="color:var(--text-soft);font-size:0.9rem;margin:0 0 0.5rem">Informe seu e-mail e enviaremos um link para redefinir sua senha.</p>
+            <p style="color:var(--text-soft);font-size:0.9rem;margin:0 0 0.5rem">Informe seu e-mail para receber o link de redefinição.</p>
             <label for="forgot-email">E-mail</label>
             <input id="forgot-email" type="email" required autocomplete="email">
             <button class="btn full" type="submit">Enviar link de recuperação</button>
             <p style="text-align:center;margin-top:0.5rem">
               <button type="button" id="btn-back-login" style="background:none;border:none;color:var(--accent);font:inherit;font-size:0.88rem;font-weight:700;cursor:pointer;padding:0">← Voltar ao login</button>
             </p>
+          </form>
+
+          <!-- Nova senha (chegou pelo link do e-mail) -->
+          <form id="reset-form" class="stack" hidden>
+            <p style="color:var(--text-soft);font-size:0.9rem;margin:0 0 0.5rem">Escolha sua nova senha.</p>
+            <label for="reset-password">Nova senha *</label>
+            <input id="reset-password" type="password" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+            <label for="reset-password-confirm">Confirmar senha *</label>
+            <input id="reset-password-confirm" type="password" required minlength="6" autocomplete="new-password" placeholder="Repita a senha">
+            <button class="btn full" type="submit">Salvar nova senha</button>
           </form>
         </div>
 
