@@ -72,6 +72,17 @@ function clearError() {
 function normalizeCep(raw) { return (raw || "").replace(/\D/g,"").slice(0,8); }
 function formatCep(raw) { const d = normalizeCep(raw); return d.length <= 5 ? d : d.slice(0,5)+"-"+d.slice(5); }
 
+function formatPhone(raw) {
+  const d = (raw || "").replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2)  return d.length ? "(" + d : d;
+  if (d.length <= 6)  return "(" + d.slice(0,2) + ") " + d.slice(2);
+  if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+  return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+}
+if (fPhone) {
+  fPhone.addEventListener("input", () => { fPhone.value = formatPhone(fPhone.value); });
+}
+
 fCep.addEventListener("input", () => { fCep.value = formatCep(fCep.value); });
 fCep.addEventListener("blur", async () => {
   const digits = normalizeCep(fCep.value);
@@ -263,7 +274,11 @@ elForm.addEventListener("submit", async e => {
 
     elSuccess.style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => { elSuccess.style.display = "none"; }, 4000);
+
+    // Redireciona para o dashboard passando flag de sucesso
+    setTimeout(() => {
+      window.location.href = "dashboard.html?perfil=atualizado";
+    }, 1200);
 
   } catch(err) {
     showError(err.message || "Erro ao salvar. Tente novamente.");

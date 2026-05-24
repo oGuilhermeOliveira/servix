@@ -1,5 +1,5 @@
-import { supabase } from "./supabase-init.js";
-import { initServiceSearch } from "./service-search.js";
+import { supabase } from "../js/supabase-init.js";
+import { getAreaSlugsForHeroCategory } from "../js/category-map.js";
 
 const SESSION_SEARCH_KEY = "servix:last-search";
 
@@ -117,6 +117,21 @@ if (themeSwitcher && themeFabButton && themeMenu) {
   mediaQuery.addEventListener("change", () => { if (cur === "system") applyTheme("system"); });
 }
 
+// --- Máscara de telefone ---
+function formatPhone(raw) {
+  const d = (raw || "").replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2)  return d.length ? "(" + d : d;
+  if (d.length <= 6)  return "(" + d.slice(0,2) + ") " + d.slice(2);
+  if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+  return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+}
+const clientPhoneInput = document.getElementById("client-phone");
+if (clientPhoneInput) {
+  clientPhoneInput.addEventListener("input", () => {
+    clientPhoneInput.value = formatPhone(clientPhoneInput.value);
+  });
+}
+
 // --- Máscara e hint do CEP ---
 const cepInput = document.getElementById("cep-cliente");
 const cepHint  = document.getElementById("cep-cidade-hint");
@@ -139,42 +154,26 @@ if (cepInput) {
   });
 }
 
-// --- Busca de serviço (autocomplete) ---
-const serviceSearchRoot = document.getElementById("service-search");
-const serviceSearch = serviceSearchRoot ? initServiceSearch(serviceSearchRoot) : null;
-const serviceClearBtn = serviceSearchRoot?.querySelector("[data-service-clear]");
-const serviceInput = document.getElementById("servico-busca");
-
-if (serviceInput && serviceClearBtn) {
-  serviceInput.addEventListener("input", () => {
-    serviceClearBtn.hidden = !serviceInput.value.trim();
-  });
-}
-
 // --- Formulário de busca ---
 const quickForm = document.getElementById("quick-form");
 if (quickForm) {
   quickForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
-    const service = serviceSearch?.validate?.() || null;
+    const category    = document.getElementById("categoria")?.value?.trim()     || "";
     const clientName  = document.getElementById("client-name")?.value?.trim()   || "";
     const clientPhone = document.getElementById("client-phone")?.value?.trim()  || "";
     const cepRaw      = cepInput?.value || "";
+    const areaSlugs   = getAreaSlugsForHeroCategory(category);
 
     if (!supabase) {
       showMessage("quick-form", "Configure supabase-config.js com URL e chave anon do Supabase.", true);
       return;
     }
-    if (!service?.slug) {
-      showMessage("quick-form", "Digite o servico e escolha uma opcao da lista.", true);
-      serviceInput?.focus();
+    if (areaSlugs.length === 0) {
+      showMessage("quick-form", "Selecione uma categoria válida.", true);
       return;
     }
-
-    const areaSlugs = [service.slug];
-    const category = service.label;
-    const serviceGroup = service.group;
     const digits = normalizeCep(cepRaw);
     if (digits.length !== 8) {
       showMessage("quick-form", "Informe um CEP com 8 dígitos.", true);
@@ -194,25 +193,31 @@ if (quickForm) {
     const clientLat = geo?.lat   ?? null;
     const clientLng = geo?.lng   ?? null;
 
-    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Ver profissionais perto de mim"; }
+    const { error } = await supabase.from("service_requests").insert({
+      category,
+      city,
+      client_lat:   clientLat,
+      client_lng:   clientLng,
+      client_name:  clientName,
+      client_phone: clientPhone,
+    });
+
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Receber orcamentos gratis"; }
+
+    if (error) {
+      console.error("service_requests:", error);
+      showMessage("quick-form", "Não foi possível enviar: " + (error.message || "verifique a configuração."), true);
+      return;
+    }
 
     try {
       sessionStorage.setItem(SESSION_SEARCH_KEY, JSON.stringify({
-        category,
-        serviceGroup,
-        areaSlug: service.slug,
-        areaSlugs,
-        city,
-        state,
-        cep: digits,
-        clientLat,
-        clientLng,
-        clientName,
-        clientPhone,
-        pendingRequest: true,
+        category, city, state, cep: digits,
+        areaSlugs, clientLat, clientLng,
+        clientName, clientPhone,
       }));
     } catch (e) { console.warn("sessionStorage:", e); }
 
-    window.location.href = "janelas/resultados.html";
+    window.location.href = "resultados.html";
   });
 }

@@ -39,12 +39,19 @@
             <input id="reg-full-name" type="text" required autocomplete="name">
 
             <label for="reg-phone">Telefone *</label>
-            <input id="reg-phone" type="tel" required autocomplete="tel">
+            <input id="reg-phone" type="tel" required autocomplete="tel" placeholder="(11) 99999-9999" inputmode="numeric">
 
             <label for="reg-cep">CEP *</label>
             <input id="reg-cep" type="text" required inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" maxlength="9">
+            <p id="reg-cep-address" class="form-hint" hidden style="color:var(--text-soft);margin-top:0.3rem"></p>
 
-            <label for="reg-number">Numero *</label>
+            <!-- Campos ocultos preenchidos pelo ViaCEP -->
+            <input id="reg-street" type="text" hidden autocomplete="address-line1">
+            <input id="reg-neighborhood" type="text" hidden>
+            <input id="reg-city" type="text" hidden autocomplete="address-level2">
+            <input id="reg-state" type="text" hidden maxlength="2" autocomplete="address-level1">
+
+            <label for="reg-number">Número *</label>
             <input id="reg-number" type="text" required autocomplete="address-line2" placeholder="Ex.: 123">
 
             <label for="reg-email">E-mail *</label>

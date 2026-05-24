@@ -117,6 +117,21 @@ if (themeSwitcher && themeFabButton && themeMenu) {
   mediaQuery.addEventListener("change", () => { if (cur === "system") applyTheme("system"); });
 }
 
+// --- Máscara de telefone ---
+function formatPhone(raw) {
+  const d = (raw || "").replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2)  return d.length ? "(" + d : d;
+  if (d.length <= 6)  return "(" + d.slice(0,2) + ") " + d.slice(2);
+  if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+  return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+}
+const clientPhoneInput = document.getElementById("client-phone");
+if (clientPhoneInput) {
+  clientPhoneInput.addEventListener("input", () => {
+    clientPhoneInput.value = formatPhone(clientPhoneInput.value);
+  });
+}
+
 // --- Máscara e hint do CEP ---
 const cepInput = document.getElementById("cep-cliente");
 const cepHint  = document.getElementById("cep-cidade-hint");

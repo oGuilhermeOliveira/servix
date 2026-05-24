@@ -199,6 +199,42 @@ function renderRequests(requests, provider, providerSlugs) {
   });
 }
 
+// --- Toast de sucesso vindo do editar-perfil ---
+function showToast(msg) {
+  const toast = document.createElement("div");
+  toast.textContent = msg;
+  toast.style.cssText = `
+    position:fixed;top:90px;left:50%;transform:translateX(-50%);
+    background:var(--primary);color:#fff;padding:0.75rem 1.4rem;
+    border-radius:10px;font-weight:700;font-size:0.95rem;
+    box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:999;
+    animation:fadeInDown 0.3s ease;
+  `;
+  const style = document.createElement("style");
+  style.textContent = `
+    @keyframes fadeInDown {
+      from { opacity:0; transform:translateX(-50%) translateY(-12px); }
+      to   { opacity:1; transform:translateX(-50%) translateY(0); }
+    }
+  `;
+  document.head.appendChild(style);
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = "opacity 0.4s";
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 400);
+  }, 3500);
+}
+
+if (new URLSearchParams(window.location.search).get("perfil") === "atualizado") {
+  // Remove o parâmetro da URL sem recarregar
+  window.history.replaceState({}, "", window.location.pathname);
+  // Mostra o toast assim que o DOM estiver pronto
+  document.addEventListener("DOMContentLoaded", () => showToast("✅ Perfil atualizado com sucesso!"), { once: true });
+  // Fallback caso DOMContentLoaded já tenha disparado
+  if (document.readyState !== "loading") showToast("✅ Perfil atualizado com sucesso!");
+}
+
 // --- Logout ---
 elLogout.addEventListener("click", async function () {
   if (!supabase) return;

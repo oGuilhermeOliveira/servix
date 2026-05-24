@@ -18,6 +18,8 @@ const numberInput = document.getElementById("reg-number");
 const neighborhoodInput = document.getElementById("reg-neighborhood");
 const cityInput = document.getElementById("reg-city");
 const stateInput = document.getElementById("reg-state");
+// Painel de endereço preenchido pelo CEP
+const cepAddressPanel = document.getElementById("reg-cep-address");
 let pendingRegistration = null;
 const PENDING_REG_KEY = "servix:pending-provider-registration";
 
@@ -105,6 +107,22 @@ function formatCep(raw) {
   const digits = normalizeCep(raw);
   if (digits.length <= 5) return digits;
   return digits.slice(0, 5) + "-" + digits.slice(5);
+}
+
+function formatPhone(raw) {
+  const d = (raw || "").replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2)  return d.length ? "(" + d : d;
+  if (d.length <= 6)  return "(" + d.slice(0,2) + ") " + d.slice(2);
+  if (d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+  return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+}
+
+// Aplica máscara de telefone em um input
+function applyPhoneMask(input) {
+  if (!input) return;
+  input.addEventListener("input", function () {
+    input.value = formatPhone(input.value);
+  });
 }
 
 async function fetchAddressByCep(cep) {
@@ -349,6 +367,7 @@ loginTab.addEventListener("click", function () {
 if (cepInput) {
   cepInput.addEventListener("input", function () {
     cepInput.value = formatCep(cepInput.value);
+    if (cepAddressPanel) cepAddressPanel.hidden = true;
   });
   cepInput.addEventListener("blur", async function () {
     const digits = normalizeCep(cepInput.value);
@@ -364,6 +383,13 @@ if (cepInput) {
       if (cityInput) cityInput.value = data.localidade || "";
       if (stateInput) stateInput.value = (data.uf || "").toUpperCase();
       if (numberInput) numberInput.focus();
+
+      // Mostra painel com endereço encontrado
+      if (cepAddressPanel) {
+        const parts = [data.logradouro, data.bairro, data.localidade, data.uf].filter(Boolean);
+        cepAddressPanel.textContent = "📍 " + parts.join(", ");
+        cepAddressPanel.hidden = false;
+      }
     } catch (error) {
       showMessage("register-form", error.message || "Nao foi possivel consultar o CEP.", true);
     }
@@ -381,10 +407,6 @@ registerForm.addEventListener("submit", async function (event) {
 
   if (formData.password !== formData.passwordConfirm) {
     showMessage("register-form", "As senhas nao conferem.", true);
-    return;
-  }
-  if (!formData.composed.address || !formData.composed.city || !formData.composed.state) {
-    showMessage("register-form", "Preencha CEP, rua, numero, bairro, cidade e estado.", true);
     return;
   }
   if (formData.areaIds.length < 1) {
@@ -578,6 +600,9 @@ if (supabase) {
     if (event === "PASSWORD_RECOVERY") setTab("reset");
   });
 }
+
+// --- Máscaras de telefone ---
+applyPhoneMask(document.getElementById("reg-phone"));
 
 setupThemeSwitcher();
 loadAreas();
