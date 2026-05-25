@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="../assets/abelhaWhBG.png">
+  <title>Segurança | Servix Solutions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="../index.html" class="brand">Servix <span>Solutions</span></a>
+      <div class="nav-actions">
+        <a href="dashboard.html" class="btn btn-small">Painel</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container content-page">
+      <h1>Segurança, acesso e suporte</h1>
+
+      <div id="sec-loading" style="color:var(--text-muted)">Carregando...</div>
+      <div id="sec-guest" hidden>
+        <p>Faça login para gerenciar segurança.</p>
+        <a href="prestador.html" class="btn">Entrar</a>
+      </div>
+
+      <div id="sec-main" hidden>
+        <section class="settings-card">
+          <h2>Alterar senha (dentro da conta)</h2>
+          <form id="change-password-form" class="stack">
+            <label for="current-password">Senha atual</label>
+            <input id="current-password" type="password" required autocomplete="current-password">
+            <label for="new-password">Nova senha</label>
+            <input id="new-password" type="password" required minlength="6" autocomplete="new-password">
+            <label for="confirm-password">Confirmar nova senha</label>
+            <input id="confirm-password" type="password" required minlength="6" autocomplete="new-password">
+            <button type="submit" class="btn">Atualizar senha</button>
+          </form>
+        </section>
+
+        <section class="settings-card">
+          <h2>Esqueci a senha (fora da conta)</h2>
+          <p class="form-hint">Se não lembra a senha atual, envie um link de recuperação para seu e-mail.</p>
+          <a href="prestador.html" class="btn btn-secondary" id="goto-forgot">Recuperar senha por e-mail</a>
+        </section>
+
+        <section class="settings-card">
+          <h2>Suporte</h2>
+          <p><a href="contato.html">Fale conosco</a> · <a href="faq.html">Perguntas frequentes</a></p>
+        </section>
+
+        <section class="settings-card danger-zone">
+          <h2>Exclusão de conta</h2>
+          <p class="form-hint">Remove permanentemente seu perfil, pedidos ocultos, serviços concluídos, notificações e login. Esta ação não pode ser desfeita.</p>
+          <label class="toggle-row">
+            <span>Confirmo que desejo excluir todos os meus dados</span>
+            <input type="checkbox" id="delete-confirm">
+          </label>
+          <button type="button" id="delete-account-btn" class="btn btn-danger" style="margin-top:0.8rem" disabled>Excluir minha conta</button>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div class="theme-fab" id="theme-switcher">
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Tema"></button>
+    <div id="theme-menu" class="theme-menu" hidden>
+      <button class="theme-menu-item" type="button" data-theme-mode="light">Tema claro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark">Tema escuro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system">Sistema</button>
+    </div>
+  </div>
+
+  <script type="module" src="../js/seguranca.js"></script>
+</body>
+</html>

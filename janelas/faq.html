@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="../assets/abelhaWhBG.png">
+  <title>FAQ | Servix Solutions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="../index.html" class="brand">Servix <span>Solutions</span></a>
+      <nav class="menu">
+        <a href="../index.html">Início</a>
+        <a href="contato.html">Fale conosco</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container content-page">
+      <h1>Perguntas frequentes</h1>
+      <p class="section-sub">Respostas para as dúvidas mais comuns sobre o Servix Solutions.</p>
+
+      <details class="faq-item" open>
+        <summary>O que é o Servix Solutions?</summary>
+        <div class="faq-answer">O Servix é uma plataforma que conecta clientes a prestadores de serviços domésticos e profissionais. O cliente descreve o serviço desejado e encontra profissionais da região; o prestador recebe pedidos compatíveis com suas áreas de atuação.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Como solicito um orçamento?</summary>
+        <div class="faq-answer">Na página inicial, informe o tipo de serviço, seu nome, telefone e CEP. O sistema busca profissionais próximos e registra seu pedido. Em seguida, os prestadores podem entrar em contato pelo WhatsApp ou telefone.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>O serviço é gratuito para o cliente?</summary>
+        <div class="faq-answer">Sim. Solicitar orçamentos e buscar profissionais na plataforma é gratuito para quem precisa do serviço. O pagamento é combinado diretamente com o prestador escolhido.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Como me cadastro como prestador?</summary>
+        <div class="faq-answer">Acesse a área do prestador, crie sua conta com e-mail e senha, preencha endereço, telefone, foto e selecione ao menos uma área de atuação. Após o cadastro, você aparece nas buscas e recebe pedidos no painel.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Preciso pagar mensalidade para ser prestador?</summary>
+        <div class="faq-answer">Não há mensalidade obrigatória informada na plataforma. O cadastro permite receber pedidos e gerenciar seu perfil pelo painel.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Quantos profissionais posso comparar?</summary>
+        <div class="faq-answer">Na busca inicial, o cliente pode visualizar vários prestadores da região. A negociação e a escolha final são feitas diretamente entre cliente e profissional.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Como altero minha senha?</summary>
+        <div class="faq-answer">Na tela de login do prestador, use "Esqueci a senha" para receber um link por e-mail. Se já estiver logado, vá em Segurança no painel para alterar a senha sem sair da conta.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Como excluo minha conta?</summary>
+        <div class="faq-answer">Prestadores podem excluir a conta em Segurança, na seção "Exclusão de conta". Todos os dados vinculados ao perfil serão removidos permanentemente.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Como funcionam os dados pessoais (LGPD)?</summary>
+        <div class="faq-answer">Coletamos apenas dados necessários para o funcionamento do serviço. Consulte nossa Política de Privacidade e Termos de Uso. No cadastro, é necessário aceitar os termos para criar conta.</div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Como entro em contato com o suporte?</summary>
+        <div class="faq-answer">Use a página Fale conosco ou o e-mail no rodapé do site. Atendemos por e-mail, WhatsApp e telefone nos horários informados.</div>
+      </details>
+    </div>
+  </main>
+
+  <div class="theme-fab" id="theme-switcher">
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Abrir menu de tema" aria-expanded="false" aria-controls="theme-menu">
+      <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+      <span class="theme-icon theme-icon-moon" aria-hidden="true">☽</span>
+    </button>
+    <div id="theme-menu" class="theme-menu" hidden>
+      <button class="theme-menu-item" type="button" data-theme-mode="light"><span class="theme-item-icon" aria-hidden="true">☀</span><span>Tema claro</span></button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark"><span class="theme-item-icon" aria-hidden="true">☽</span><span>Tema escuro</span></button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system"><span class="theme-item-icon" aria-hidden="true">◐</span><span>Padrão do dispositivo</span></button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { injectFooter } from "../js/footer.js";
+    import { setupThemeSwitcher } from "../js/theme.js";
+    injectFooter();
+    setupThemeSwitcher();
+  </script>
+</body>
+</html>

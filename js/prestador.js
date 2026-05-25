@@ -1,7 +1,7 @@
 import { supabase } from "./supabase-init.js";
+import { injectFooter } from "./footer.js";
+import { setupThemeSwitcher } from "./theme.js";
 
-const THEME_KEY = "servix-theme-mode";
-const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const registerForm = document.getElementById("register-form");
 const loginForm = document.getElementById("login-form");
 const forgotForm = document.getElementById("forgot-form");
@@ -35,58 +35,6 @@ function showMessage(containerId, message, isError) {
   p.style.fontWeight = "700";
   p.style.color = isError ? "var(--danger, #c0392b)" : "var(--primary)";
   host.appendChild(p);
-}
-
-function getResolvedTheme(mode) {
-  if (mode === "system") return mediaQuery.matches ? "dark" : "light";
-  return mode;
-}
-
-function applyTheme(mode) {
-  document.documentElement.setAttribute("data-theme", getResolvedTheme(mode));
-}
-
-function updateThemeSelection(mode) {
-  document.querySelectorAll(".theme-menu-item").forEach(function (item) {
-    const active = item.dataset.themeMode === mode;
-    item.classList.toggle("active", active);
-    item.setAttribute("aria-pressed", active ? "true" : "false");
-  });
-}
-
-function setupThemeSwitcher() {
-  const switcher = document.getElementById("theme-switcher");
-  const button = document.getElementById("theme-fab-button");
-  const menu = document.getElementById("theme-menu");
-  if (!switcher || !button || !menu) return;
-  let current = localStorage.getItem(THEME_KEY) || "system";
-  if (!["light", "dark", "system"].includes(current)) current = "system";
-  applyTheme(current);
-  updateThemeSelection(current);
-
-  button.addEventListener("click", function () {
-    const open = !menu.hidden;
-    menu.hidden = open;
-    button.setAttribute("aria-expanded", open ? "false" : "true");
-  });
-  document.querySelectorAll(".theme-menu-item").forEach(function (item) {
-    item.addEventListener("click", function () {
-      const next = item.dataset.themeMode;
-      if (!next) return;
-      current = next;
-      localStorage.setItem(THEME_KEY, current);
-      applyTheme(current);
-      updateThemeSelection(current);
-      menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
-    });
-  });
-  document.addEventListener("click", function (event) {
-    if (!switcher.contains(event.target)) {
-      menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
-    }
-  });
 }
 
 function setTab(mode) {
@@ -203,6 +151,7 @@ async function saveProviderProfile(userId, email, payload) {
     avatar_url: payload.avatarUrl,
     lat: payload.lat,
     lng: payload.lng,
+    terms_accepted_at: new Date().toISOString(),
   };
   const upsert = await supabase.from("providers").upsert(upsertData, { onConflict: "auth_user_id" }).select("id").single();
   if (upsert.error) throw upsert.error;
@@ -414,6 +363,12 @@ registerForm.addEventListener("submit", async function (event) {
     return;
   }
 
+  const acceptTerms = document.getElementById("reg-accept-terms");
+  if (!acceptTerms?.checked) {
+    showMessage("register-form", "Aceite os Termos de Uso e a Politica de Privacidade para continuar.", true);
+    return;
+  }
+
   const sign = await supabase.auth.signUp({ email: formData.email.trim(), password: formData.password });
   if (sign.error) {
     showMessage("register-form", sign.error.message, true);
@@ -546,8 +501,7 @@ if (forgotForm) {
     submitBtn.disabled    = true;
     submitBtn.textContent = "Enviando...";
 
-    // redirectTo aponta para esta mesma página
-    const redirectTo = window.location.href.split("#")[0];
+    const redirectTo = new URL("redefinir-senha.html", window.location.href).href;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
@@ -604,6 +558,12 @@ if (supabase) {
 // --- Máscaras de telefone ---
 applyPhoneMask(document.getElementById("reg-phone"));
 
-setupThemeSwitcher();
 loadAreas();
+setupThemeSwitcher();
 refreshAuthState();
+
+if (window.location.hash === "#forgot") {
+  setTab("forgot");
+}
+
+injectFooter();

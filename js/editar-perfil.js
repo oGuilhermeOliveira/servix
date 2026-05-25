@@ -1,4 +1,8 @@
 import { supabase } from "./supabase-init.js";
+import { injectFooter } from "./footer.js";
+import { notifyProfileUpdated } from "./notifications.js";
+
+injectFooter();
 
 // --- Tema ---
 const THEME_KEY = "servix-theme-mode";
@@ -272,10 +276,11 @@ elForm.addEventListener("submit", async e => {
       }
     }
 
+    await notifyProfileUpdated(prov.id);
+
     elSuccess.style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Redireciona para o dashboard passando flag de sucesso
     setTimeout(() => {
       window.location.href = "dashboard.html?perfil=atualizado";
     }, 1200);

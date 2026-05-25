@@ -314,19 +314,52 @@
             </div>
 
             <div class="profile-actions">
+              <a href="minha-conta.html" class="btn btn-secondary full">Minha conta</a>
+              <a href="seguranca.html" class="btn btn-secondary full">Segurança</a>
               <a href="editar-perfil.html" class="btn btn-secondary full">Editar perfil</a>
               <button id="dashboard-logout" class="btn full" type="button"
                 style="background: var(--border); color: var(--text);">Sair</button>
             </div>
           </aside>
 
-          <!-- Coluna direita: requisições -->
+          <!-- Coluna direita: painel -->
           <section class="requests-panel">
+            <div class="chart-wrap">
+              <div class="chart-toolbar">
+                <h2 style="margin:0;font-size:1.1rem">Dashboard</h2>
+                <button type="button" id="export-chart-btn" class="btn btn-small btn-secondary">Exportar relatório (CSV)</button>
+              </div>
+              <canvas id="stats-chart" height="120" aria-label="Gráfico de orçamentos e serviços concluídos"></canvas>
+            </div>
+
             <div class="requests-header">
-              <h2>Pedidos de serviço <span id="requests-count" class="badge-count" hidden></span></h2>
-              <p class="section-sub" style="margin:0">Clientes que buscaram sua área de atuação</p>
+              <div>
+                <h2>Pedidos de serviço <span id="requests-count" class="badge-count" hidden></span></h2>
+                <p class="section-sub" style="margin:0">Orçamentos na sua área — oculte os indesejados ou marque como concluídos</p>
+              </div>
+              <label>
+                <span class="sr-only">Filtrar por área</span>
+                <select id="filter-area" class="filter-select" aria-label="Filtrar por área do serviço"></select>
+              </label>
             </div>
             <div id="requests-list"></div>
+
+            <div style="margin-top:1.5rem">
+              <h2 style="font-size:1.1rem;margin:0 0 0.6rem">Serviços concluídos</h2>
+              <div class="completed-table-wrap">
+                <table class="completed-table">
+                  <thead>
+                    <tr>
+                      <th>Serviço</th>
+                      <th>Cidade</th>
+                      <th>Cliente</th>
+                      <th>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody id="completed-table-body"></tbody>
+                </table>
+              </div>
+            </div>
           </section>
 
         </div>
@@ -354,6 +387,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="module" src="../js/dashboard.js"></script>
 </body>
 </html>

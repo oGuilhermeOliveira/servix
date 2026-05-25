@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="../assets/abelhaWhBG.png">
+  <title>Termos de Uso | Servix Solutions</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="../index.html" class="brand">Servix <span>Solutions</span></a>
+    </div>
+  </header>
+  <main class="section">
+    <div class="container content-page legal-content">
+      <h1>Termos de Uso</h1>
+      <p><em>Última atualização: maio de 2026.</em></p>
+
+      <h2>1. Aceitação</h2>
+      <p>Ao criar conta ou utilizar o Servix Solutions, você declara ter lido e aceito estes Termos e a <a href="privacidade.html">Política de Privacidade</a>, em conformidade com a LGPD.</p>
+
+      <h2>2. Objeto</h2>
+      <p>A plataforma conecta pessoas que buscam serviços a prestadores cadastrados. O Servix não executa os serviços contratados nem garante a qualidade do trabalho realizado entre as partes.</p>
+
+      <h2>3. Cadastro do prestador</h2>
+      <p>O prestador deve fornecer informações verdadeiras, manter senha em sigilo e selecionar áreas de atuação compatíveis com sua atividade. É proibido criar perfis falsos ou utilizar dados de terceiros sem autorização.</p>
+
+      <h2>4. Uso pelo cliente</h2>
+      <p>O cliente informa dados para receber contato de profissionais. O pagamento e condições do serviço são acordados diretamente entre cliente e prestador, fora da responsabilidade da plataforma.</p>
+
+      <h2>5. Condutas proibidas</h2>
+      <ul>
+        <li>Fraude, assédio, discriminação ou conteúdo ilícito;</li>
+        <li>Coleta indevida de dados de outros usuários;</li>
+        <li>Uso automatizado abusivo da plataforma;</li>
+        <li>Violação de direitos de propriedade intelectual.</li>
+      </ul>
+
+      <h2>6. Propriedade intelectual</h2>
+      <p>Marca, layout e software do Servix Solutions pertencem aos seus desenvolvedores. Conteúdo enviado pelo usuário (fotos, textos) permanece de titularidade do usuário, com licença para exibição na plataforma.</p>
+
+      <h2>7. Limitação de responsabilidade</h2>
+      <p>O Servix não responde por danos decorrentes de serviços prestados, atrasos, inadimplemento ou negociações entre usuários. A plataforma é fornecida "como está", dentro dos limites da lei.</p>
+
+      <h2>8. Exclusão de conta</h2>
+      <p>O prestador pode solicitar exclusão permanente da conta em Segurança. Após a exclusão, dados vinculados ao perfil serão removidos, ressalvadas obrigações legais.</p>
+
+      <h2>9. Alterações e rescisão</h2>
+      <p>Podemos alterar estes termos ou suspender contas em caso de violação. O usuário será informado de mudanças relevantes nesta página.</p>
+
+      <h2>10. Foro e legislação</h2>
+      <p>Aplica-se a legislação brasileira. Fica eleito o foro da comarca do domicílio do usuário, quando previsto pelo Código de Defesa do Consumidor.</p>
+
+      <h2>11. Contato</h2>
+      <p>Dúvidas: <a id="terms-email" href="#">contato@servixsolutions.com</a></p>
+    </div>
+  </main>
+  <script type="module">
+    import { APP } from "../js/app-config.js";
+    import { injectFooter } from "../js/footer.js";
+    import { setupThemeSwitcher } from "../js/theme.js";
+    document.getElementById("terms-email").href = `mailto:${APP.contactEmail}`;
+    document.getElementById("terms-email").textContent = APP.contactEmail;
+    injectFooter();
+    setupThemeSwitcher();
+  </script>
+  <div class="theme-fab" id="theme-switcher">
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Tema"></button>
+    <div id="theme-menu" class="theme-menu" hidden>
+      <button class="theme-menu-item" type="button" data-theme-mode="light">Tema claro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark">Tema escuro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system">Sistema</button>
+    </div>
+  </div>
+</body>
+</html>

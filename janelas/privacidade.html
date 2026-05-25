@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="../assets/abelhaWhBG.png">
+  <title>Política de Privacidade | Servix Solutions</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="../index.html" class="brand">Servix <span>Solutions</span></a>
+    </div>
+  </header>
+  <main class="section">
+    <div class="container content-page legal-content">
+      <h1>Política de Privacidade</h1>
+      <p><em>Última atualização: maio de 2026. Em conformidade com a Lei nº 13.709/2018 (LGPD).</em></p>
+
+      <h2>1. Controlador dos dados</h2>
+      <p>O Servix Solutions, por meio de sua plataforma web, atua como controlador dos dados pessoais tratados neste serviço. Contato do encarregado/DPO: <a id="privacy-email" href="#">contato@servixsolutions.com</a>.</p>
+
+      <h2>2. Dados que coletamos</h2>
+      <p><strong>Clientes (busca de serviço):</strong> nome, telefone, localização aproximada (CEP/cidade/coordenadas), categoria do serviço solicitado.</p>
+      <p><strong>Prestadores:</strong> nome, e-mail, telefone, endereço, foto de perfil, áreas de atuação, credenciais de acesso (senha criptografada pelo provedor de autenticação).</p>
+
+      <h2>3. Finalidades e bases legais</h2>
+      <ul>
+        <li>Intermediação entre clientes e prestadores — execução de contrato e legítimo interesse.</li>
+        <li>Cadastro e autenticação — execução de contrato.</li>
+        <li>Comunicação e suporte — legítimo interesse e consentimento, quando aplicável.</li>
+        <li>Segurança e prevenção a fraudes — legítimo interesse.</li>
+        <li>Cumprimento de obrigações legais — obrigação legal.</li>
+      </ul>
+
+      <h2>4. Compartilhamento</h2>
+      <p>Dados de pedidos podem ser visualizados por prestadores compatíveis com a área do serviço. Utilizamos Supabase para hospedagem de banco de dados e autenticação. Não vendemos dados pessoais.</p>
+
+      <h2>5. Retenção</h2>
+      <p>Mantemos os dados enquanto a conta estiver ativa ou conforme necessidade operacional. Após exclusão da conta pelo prestador, os dados são removidos de forma permanente, salvo obrigação legal de retenção.</p>
+
+      <h2>6. Direitos do titular</h2>
+      <p>Você pode solicitar: confirmação de tratamento, acesso, correção, anonimização, portabilidade, eliminação, informação sobre compartilhamentos e revogação de consentimento. Prazo de resposta: até 15 dias, conforme LGPD.</p>
+
+      <h2>7. Segurança</h2>
+      <p>Adotamos medidas técnicas como HTTPS, controle de acesso (RLS) no banco de dados e autenticação segura. Nenhum sistema é 100% invulnerável; em caso de incidente, notificaremos conforme a lei.</p>
+
+      <h2>8. Cookies e armazenamento local</h2>
+      <p>Utilizamos armazenamento local do navegador para preferências (tema) e sessão de busca. Não utilizamos cookies de rastreamento publicitário de terceiros.</p>
+
+      <h2>9. Alterações</h2>
+      <p>Esta política pode ser atualizada. A versão vigente estará sempre nesta página.</p>
+    </div>
+  </main>
+  <script type="module">
+    import { APP } from "../js/app-config.js";
+    import { injectFooter } from "../js/footer.js";
+    import { setupThemeSwitcher } from "../js/theme.js";
+    document.getElementById("privacy-email").href = `mailto:${APP.contactEmail}`;
+    document.getElementById("privacy-email").textContent = APP.contactEmail;
+    injectFooter();
+    setupThemeSwitcher();
+  </script>
+  <div class="theme-fab" id="theme-switcher">
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Tema"></button>
+    <div id="theme-menu" class="theme-menu" hidden>
+      <button class="theme-menu-item" type="button" data-theme-mode="light">Tema claro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark">Tema escuro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system">Sistema</button>
+    </div>
+  </div>
+</body>
+</html>

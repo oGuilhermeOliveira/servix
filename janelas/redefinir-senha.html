@@ -56,30 +56,36 @@
 
     // O Supabase envia o token na URL como hash (#access_token=...)
     // O supabase-js detecta automaticamente via onAuthStateChange
+    function showForm() {
+      elLoading.hidden = true;
+      elForm.hidden = false;
+    }
+
+    function showError() {
+      elLoading.hidden = true;
+      elError.hidden = false;
+    }
+
     async function init() {
       if (!supabase) { showError(); return; }
 
-      // Aguarda o supabase processar o hash da URL
+      await new Promise((r) => setTimeout(r, 400));
       const { data: { session } } = await supabase.auth.getSession();
-
       if (session) {
-        elLoading.hidden = true;
-        elForm.hidden    = false;
-      } else {
-        // Tenta via onAuthStateChange (fluxo PKCE)
-        supabase.auth.onAuthStateChange((event, session) => {
-          if (event === "PASSWORD_RECOVERY" && session) {
-            elLoading.hidden = true;
-            elForm.hidden    = false;
-          }
-        });
-        // Timeout: se não resolver em 3s, mostra erro
-        setTimeout(() => {
-          if (!elForm.hidden) return;
-          elLoading.hidden = true;
-          elError.hidden   = false;
-        }, 3000);
+        showForm();
+        return;
       }
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
+        if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && sess) {
+          showForm();
+          subscription?.unsubscribe();
+        }
+      });
+
+      setTimeout(() => {
+        if (elForm.hidden) showError();
+      }, 5000);
     }
 
     elForm.addEventListener("submit", async function (e) {
@@ -127,6 +133,12 @@
     }
 
     init();
+  </script>
+  <script type="module">
+    import { injectFooter } from "../js/footer.js";
+    import { setupThemeSwitcher } from "../js/theme.js";
+    injectFooter();
+    setupThemeSwitcher();
   </script>
 </body>
 </html>

@@ -1,85 +1,34 @@
 import { supabase } from "./supabase-init.js";
+import { injectFooter } from "./footer.js";
+import { setupThemeSwitcher } from "./theme.js";
+import { notifyManyRequestsIfNeeded, notifyProfileUpdated } from "./notifications.js";
 
-// --- Tema ---
-const THEME_KEY = "servix-theme-mode";
-const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+injectFooter();
+setupThemeSwitcher();
 
-function getResolvedTheme(mode) {
-  if (mode === "system") return mediaQuery.matches ? "dark" : "light";
-  return mode;
-}
-function applyTheme(mode) {
-  document.documentElement.setAttribute("data-theme", getResolvedTheme(mode));
-}
-function updateThemeSelection(mode) {
-  document.querySelectorAll(".theme-menu-item").forEach(function (item) {
-    const active = item.dataset.themeMode === mode;
-    item.classList.toggle("active", active);
-    item.setAttribute("aria-pressed", active ? "true" : "false");
-  });
-}
-(function setupTheme() {
-  const switcher = document.getElementById("theme-switcher");
-  const button = document.getElementById("theme-fab-button");
-  const menu = document.getElementById("theme-menu");
-  if (!switcher || !button || !menu) return;
-  let current = localStorage.getItem(THEME_KEY) || "system";
-  if (!["light", "dark", "system"].includes(current)) current = "system";
-  applyTheme(current);
-  updateThemeSelection(current);
-  button.addEventListener("click", function () {
-    const open = !menu.hidden;
-    menu.hidden = open;
-    button.setAttribute("aria-expanded", open ? "false" : "true");
-  });
-  document.querySelectorAll(".theme-menu-item").forEach(function (item) {
-    item.addEventListener("click", function () {
-      const next = item.dataset.themeMode;
-      if (!next) return;
-      current = next;
-      localStorage.setItem(THEME_KEY, current);
-      applyTheme(current);
-      updateThemeSelection(current);
-      menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
-    });
-  });
-  document.addEventListener("click", function (e) {
-    if (!switcher.contains(e.target)) {
-      menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
-    }
-  });
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
-      menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
-    }
-  });
-  mediaQuery.addEventListener("change", function () {
-    if (current === "system") applyTheme("system");
-  });
-})();
+const CATEGORY_SLUG_MAP = {
+  "Reformas e Reparos": [
+    "encanador", "pintor", "eletricista", "pedreiro", "marceneiro", "jardineiro",
+    "ar_condicionado", "desentupidor", "marido_aluguel", "vidraceiro", "gesso_drywall",
+    "serralheria", "redes_protecao", "tapeceiro", "dedetizador", "seguranca_eletronica",
+    "eletrodomesticos", "chaveiro", "limpeza_pos_obra", "impermeabilizacao", "arquiteto",
+  ],
+  "Servicos Domesticos": ["diarista", "passadeira", "cozinheira", "baba", "cuidador"],
+  "Servicos Domesticos e Lar": ["diarista", "passadeira", "cozinheira", "baba", "cuidador", "informatica", "redes_cabeamento", "bem_estar", "manicure", "cabeleireiro"],
+  "Manutencao do Lar": ["informatica", "redes_cabeamento", "bem_estar", "manicure", "cabeleireiro"],
+};
 
-// --- Helpers ---
-function haversineKm(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const toRad = d => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+let chartInstance = null;
+let state = {
+  provider: null,
+  areas: [],
+  providerSlugs: [],
+  allRequests: [],
+  dismissedIds: new Set(),
+  filterSlug: "",
+  chartData: { labels: [], requests: [], completed: [] },
+};
 
-function formatDate(isoString) {
-  if (!isoString) return "";
-  const d = new Date(isoString);
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-// --- Elementos ---
 const elLoading = document.getElementById("dashboard-loading");
 const elNotLogged = document.getElementById("not-logged");
 const elMain = document.getElementById("dashboard-main");
@@ -92,11 +41,53 @@ const elAreasTags = document.getElementById("profile-areas-tags");
 const elRequestsList = document.getElementById("requests-list");
 const elRequestsCount = document.getElementById("requests-count");
 const elLogout = document.getElementById("dashboard-logout");
+const elFilterArea = document.getElementById("filter-area");
+const elCompletedBody = document.getElementById("completed-table-body");
+const elExportChart = document.getElementById("export-chart-btn");
 
-function showState(state) {
-  elLoading.hidden = state !== "loading";
-  elNotLogged.hidden = state !== "not-logged";
-  elMain.hidden = state !== "main";
+function showState(s) {
+  elLoading.hidden = s !== "loading";
+  elNotLogged.hidden = s !== "not-logged";
+  elMain.hidden = s !== "main";
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function requestMatchesProvider(request, providerSlugs) {
+  const slugSet = new Set(providerSlugs);
+  if (request.area_slug) return slugSet.has(request.area_slug);
+  const categorySlugs = CATEGORY_SLUG_MAP[request.category] || [];
+  return categorySlugs.some((s) => slugSet.has(s));
+}
+
+function getMatchingRequests() {
+  return state.allRequests.filter((r) => {
+    if (state.dismissedIds.has(r.id)) return false;
+    if (!requestMatchesProvider(r, state.providerSlugs)) return false;
+    if (state.filterSlug) {
+      const matchesArea = r.area_slug === state.filterSlug;
+      const matchesCategory = (CATEGORY_SLUG_MAP[r.category] || []).includes(state.filterSlug);
+      if (!matchesArea && !matchesCategory) return false;
+    }
+    return true;
+  });
 }
 
 function renderProfile(provider, areas) {
@@ -114,7 +105,7 @@ function renderProfile(provider, areas) {
   }
 
   elAreasTags.innerHTML = "";
-  areas.forEach(function (area) {
+  areas.forEach((area) => {
     const tag = document.createElement("span");
     tag.className = "area-tag";
     tag.textContent = area.name;
@@ -122,133 +113,264 @@ function renderProfile(provider, areas) {
   });
 }
 
-// Para cada categoria hero, quais slugs ela representa
-const CATEGORY_SLUG_MAP = {
-  "Reformas e Reparos": [
-    "encanador", "pintor", "eletricista", "pedreiro", "marceneiro", "jardineiro",
-    "ar_condicionado", "desentupidor", "marido_aluguel", "vidraceiro", "gesso_drywall",
-    "serralheria", "redes_protecao", "tapeceiro", "dedetizador", "seguranca_eletronica",
-    "eletrodomesticos", "chaveiro", "limpeza_pos_obra", "impermeabilizacao", "arquiteto",
-  ],
-  "Servicos Domesticos": ["diarista", "passadeira", "cozinheira", "baba", "cuidador"],
-  "Manutencao do Lar": ["informatica", "redes_cabeamento", "bem_estar", "manicure", "cabeleireiro"],
-  "Servicos Domesticos e Lar": ["diarista", "passadeira", "cozinheira", "baba", "cuidador", "informatica", "redes_cabeamento", "bem_estar", "manicure", "cabeleireiro"],
-};
-
-// Retorna true se o pedido bate com as áreas do prestador
-function requestMatchesProvider(request, providerSlugs) {
-  const slugSet = new Set(providerSlugs);
-  if (request.area_slug) return slugSet.has(request.area_slug);
-  const categorySlugs = CATEGORY_SLUG_MAP[request.category] || [];
-  return categorySlugs.some(s => slugSet.has(s));
+function populateAreaFilter(areas) {
+  if (!elFilterArea) return;
+  elFilterArea.innerHTML = '<option value="">Todas as áreas</option>';
+  areas.forEach((a) => {
+    const opt = document.createElement("option");
+    opt.value = a.slug;
+    opt.textContent = a.name;
+    elFilterArea.appendChild(opt);
+  });
 }
 
-function renderRequests(requests, provider, providerSlugs) {
-  elRequestsList.innerHTML = "";
-  const providerName = provider?.full_name || "prestador";
+async function dismissRequest(requestId) {
+  const { error } = await supabase.from("provider_dismissed_requests").insert({
+    provider_id: state.provider.id,
+    request_id: requestId,
+  });
+  if (error) {
+    alert("Não foi possível ocultar o pedido. Execute migration_007 no Supabase.");
+    return;
+  }
+  state.dismissedIds.add(requestId);
+  renderRequests();
+  updateChart();
+}
 
-  // Filtra apenas os pedidos que batem com as áreas do prestador
-  const matching = requests.filter(r => requestMatchesProvider(r, providerSlugs));
+async function completeRequest(req) {
+  const row = {
+    provider_id: state.provider.id,
+    request_id: req.id,
+    category: req.category || "Serviço",
+    area_slug: req.area_slug,
+    city: req.city,
+    client_name: req.client_name,
+    client_phone: req.client_phone,
+  };
+  const { error } = await supabase.from("completed_services").insert(row);
+  if (error) {
+    alert("Erro ao registrar serviço concluído: " + error.message);
+    return;
+  }
+  if (!state.dismissedIds.has(req.id)) {
+    await supabase.from("provider_dismissed_requests").insert({
+      provider_id: state.provider.id,
+      request_id: req.id,
+    });
+    state.dismissedIds.add(req.id);
+  }
+  renderRequests();
+  await loadCompletedServices();
+  updateChart();
+}
+
+function renderRequests() {
+  elRequestsList.innerHTML = "";
+  const matching = getMatchingRequests();
+  const providerName = state.provider?.full_name || "prestador";
 
   if (matching.length === 0) {
     elRequestsList.innerHTML = `
       <div class="requests-empty">
-        <p>Nenhum pedido encontrado para suas áreas ainda.</p>
-        <p style="margin-top:0.5rem;font-size:0.85rem">Quando clientes buscarem profissionais da sua área, os pedidos aparecem aqui.</p>
+        <p>Nenhum pedido encontrado para o filtro selecionado.</p>
       </div>`;
+    elRequestsCount.hidden = true;
     return;
   }
 
   elRequestsCount.textContent = matching.length;
   elRequestsCount.hidden = false;
 
-  matching.forEach(function (req) {
+  matching.forEach((req) => {
     const card = document.createElement("div");
     card.className = "request-card";
     const clientPhoneDigits = (req.client_phone || "").replace(/\D/g, "");
     const whatsappMessage = encodeURIComponent(
-      `Olá meu nome é ${providerName}, recebi seu pedido. Vamos conversar!`
+      `Olá, meu nome é ${providerName}, recebi seu pedido. Vamos conversar!`
     );
     const whatsappUrl = `https://wa.me/${clientPhoneDigits}?text=${whatsappMessage}`;
 
-    // Distância
     let distHtml = "";
-    if (provider.lat != null && provider.lng != null && req.client_lat != null && req.client_lng != null) {
-      const km = haversineKm(provider.lat, provider.lng, req.client_lat, req.client_lng);
+    if (
+      state.provider.lat != null && state.provider.lng != null &&
+      req.client_lat != null && req.client_lng != null
+    ) {
+      const km = haversineKm(state.provider.lat, state.provider.lng, req.client_lat, req.client_lng);
       const kmStr = km < 10 ? km.toFixed(1) : Math.round(km);
       distHtml = `<span class="request-dist">📍 ${kmStr} km de você</span>`;
     }
 
+    const areaLabel = state.areas.find((a) => a.slug === req.area_slug)?.name || req.category;
+
     card.innerHTML = `
       <div class="request-card-top">
-        <span class="request-category">${req.category || "—"}</span>
+        <span class="request-category">${areaLabel || "—"}</span>
         <span class="request-date">${formatDate(req.created_at)}</span>
       </div>
       <div class="request-location">
-        <span>🏙</span>
-        <span>${req.city || "Cidade não informada"}</span>
-        ${distHtml}
+        <span>🏙</span><span>${req.city || "Cidade não informada"}</span>${distHtml}
       </div>
       ${req.client_name ? `<div class="request-location"><span>👤</span><span>${req.client_name}</span></div>` : ""}
-      ${req.client_phone
-        ? `<a class="btn btn-small provider-tel" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer" style="margin-top:0.6rem;display:inline-block">📞 ${req.client_phone}</a>`
-        : ""
-      }`;
+      <div class="request-actions">
+        ${req.client_phone
+          ? `<a class="btn btn-small" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">📞 WhatsApp</a>`
+          : ""}
+        <button type="button" class="btn btn-small btn-ghost" data-complete="${req.id}">Marcar concluído</button>
+        <button type="button" class="btn btn-small btn-ghost" data-dismiss="${req.id}">Excluir pedido</button>
+      </div>`;
+
+    card.querySelector("[data-dismiss]")?.addEventListener("click", () => {
+      if (confirm("Ocultar este pedido da sua lista?")) dismissRequest(req.id);
+    });
+    card.querySelector("[data-complete]")?.addEventListener("click", () => completeRequest(req));
 
     elRequestsList.appendChild(card);
   });
 }
 
-// --- Toast de sucesso vindo do editar-perfil ---
+async function loadCompletedServices() {
+  if (!elCompletedBody) return;
+  const { data, error } = await supabase
+    .from("completed_services")
+    .select("id, category, area_slug, city, client_name, completed_at")
+    .eq("provider_id", state.provider.id)
+    .order("completed_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    elCompletedBody.innerHTML = `<tr><td colspan="4">Execute migration_007 no Supabase.</td></tr>`;
+    return;
+  }
+
+  if (!data?.length) {
+    elCompletedBody.innerHTML = `<tr><td colspan="4">Nenhum serviço concluído registrado.</td></tr>`;
+    return;
+  }
+
+  elCompletedBody.innerHTML = data.map((row) => {
+    const areaName = state.areas.find((a) => a.slug === row.area_slug)?.name || row.category;
+    return `<tr>
+      <td>${areaName}</td>
+      <td>${row.city || "—"}</td>
+      <td>${row.client_name || "—"}</td>
+      <td>${formatDate(row.completed_at)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function buildChartData(requests, completed) {
+  const months = {};
+  const add = (iso, field) => {
+    if (!iso) return;
+    const key = iso.slice(0, 7);
+    if (!months[key]) months[key] = { requests: 0, completed: 0 };
+    months[key][field]++;
+  };
+
+  requests.forEach((r) => {
+    if (requestMatchesProvider(r, state.providerSlugs)) add(r.created_at, "requests");
+  });
+  (completed || []).forEach((c) => add(c.completed_at, "completed"));
+
+  const keys = Object.keys(months).sort();
+  return {
+    labels: keys.map((k) => {
+      const [y, m] = k.split("-");
+      return `${m}/${y}`;
+    }),
+    requests: keys.map((k) => months[k].requests),
+    completed: keys.map((k) => months[k].completed),
+  };
+}
+
+function updateChart() {
+  const canvas = document.getElementById("stats-chart");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  state.chartData = buildChartData(state.allRequests, state._completedRaw || []);
+
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: state.chartData.labels.length ? state.chartData.labels : ["Sem dados"],
+      datasets: [
+        {
+          label: "Orçamentos solicitados",
+          data: state.chartData.requests.length ? state.chartData.requests : [0],
+          backgroundColor: "rgba(255, 193, 7, 0.7)",
+        },
+        {
+          label: "Serviços concluídos",
+          data: state.chartData.completed.length ? state.chartData.completed : [0],
+          backgroundColor: "rgba(40, 167, 69, 0.7)",
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: "bottom" } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+    },
+  });
+}
+
+function exportChartCsv() {
+  const { labels, requests, completed } = state.chartData;
+  if (!labels.length) {
+    alert("Não há dados para exportar.");
+    return;
+  }
+  const lines = ["Mes;Orcamentos_solicitados;Servicos_concluidos"];
+  labels.forEach((label, i) => {
+    lines.push(`${label};${requests[i] || 0};${completed[i] || 0}`);
+  });
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `servix-relatorio-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+elExportChart?.addEventListener("click", exportChartCsv);
+
+elFilterArea?.addEventListener("change", () => {
+  state.filterSlug = elFilterArea.value;
+  renderRequests();
+});
+
+elLogout?.addEventListener("click", async () => {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+  window.location.href = "prestador.html";
+});
+
 function showToast(msg) {
   const toast = document.createElement("div");
   toast.textContent = msg;
   toast.style.cssText = `
     position:fixed;top:90px;left:50%;transform:translateX(-50%);
     background:var(--primary);color:#fff;padding:0.75rem 1.4rem;
-    border-radius:10px;font-weight:700;font-size:0.95rem;
-    box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:999;
-    animation:fadeInDown 0.3s ease;
+    border-radius:10px;font-weight:700;z-index:999;
   `;
-  const style = document.createElement("style");
-  style.textContent = `
-    @keyframes fadeInDown {
-      from { opacity:0; transform:translateX(-50%) translateY(-12px); }
-      to   { opacity:1; transform:translateX(-50%) translateY(0); }
-    }
-  `;
-  document.head.appendChild(style);
   document.body.appendChild(toast);
-  setTimeout(() => {
-    toast.style.transition = "opacity 0.4s";
-    toast.style.opacity = "0";
-    setTimeout(() => toast.remove(), 400);
-  }, 3500);
+  setTimeout(() => toast.remove(), 3500);
 }
 
 if (new URLSearchParams(window.location.search).get("perfil") === "atualizado") {
-  // Remove o parâmetro da URL sem recarregar
   window.history.replaceState({}, "", window.location.pathname);
-  // Mostra o toast assim que o DOM estiver pronto
-  document.addEventListener("DOMContentLoaded", () => showToast("✅ Perfil atualizado com sucesso!"), { once: true });
-  // Fallback caso DOMContentLoaded já tenha disparado
-  if (document.readyState !== "loading") showToast("✅ Perfil atualizado com sucesso!");
+  document.addEventListener("DOMContentLoaded", async () => {
+    showToast("✅ Perfil atualizado com sucesso!");
+  }, { once: true });
 }
 
-// --- Logout ---
-elLogout.addEventListener("click", async function () {
-  if (!supabase) return;
-  await supabase.auth.signOut();
-  window.location.href = "prestador.html";
-});
-
-// --- Init ---
 async function init() {
   if (!supabase) {
     showState("not-logged");
     return;
   }
-
   showState("loading");
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -257,7 +379,6 @@ async function init() {
     return;
   }
 
-  // Buscar dados do prestador com áreas
   const { data: provider, error: provError } = await supabase
     .from("providers")
     .select("id, full_name, email, phone, city, state, avatar_url, lat, lng, provider_service_areas(service_areas(id, slug, name))")
@@ -269,27 +390,33 @@ async function init() {
     return;
   }
 
-  const areas = (provider.provider_service_areas || [])
-    .map(l => l.service_areas)
-    .filter(Boolean);
+  state.provider = provider;
+  state.areas = (provider.provider_service_areas || []).map((l) => l.service_areas).filter(Boolean);
+  state.providerSlugs = state.areas.map((a) => a.slug);
 
-  const providerSlugs = areas.map(a => a.slug);
+  renderProfile(provider, state.areas);
+  populateAreaFilter(state.areas);
 
-  renderProfile(provider, areas);
+  const [reqRes, dismissedRes, completedRes] = await Promise.all([
+    supabase.from("service_requests").select("id, category, area_slug, city, client_lat, client_lng, client_name, client_phone, created_at").order("created_at", { ascending: false }).limit(200),
+    supabase.from("provider_dismissed_requests").select("request_id").eq("provider_id", provider.id),
+    supabase.from("completed_services").select("completed_at").eq("provider_id", provider.id),
+  ]);
 
-  // Buscar todas as requisições de serviço
-  const { data: requests, error: reqError } = await supabase
-    .from("service_requests")
-    .select("id, category, area_slug, city, client_lat, client_lng, client_name, client_phone, created_at")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  state.allRequests = reqRes.data || [];
+  state.dismissedIds = new Set((dismissedRes.data || []).map((d) => d.request_id));
+  state._completedRaw = completedRes.data || [];
 
-  if (reqError) {
-    elRequestsList.innerHTML = '<p class="results-error">Não foi possível carregar os pedidos.</p>';
-  } else {
-    renderRequests(requests || [], provider, providerSlugs);
+  const matching = getMatchingRequests();
+  await notifyManyRequestsIfNeeded(provider.id, matching.length);
+
+  if (new URLSearchParams(window.location.search).get("perfil") === "atualizado") {
+    await notifyProfileUpdated(provider.id);
   }
 
+  renderRequests();
+  await loadCompletedServices();
+  updateChart();
   showState("main");
 }
 

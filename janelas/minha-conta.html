@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="../assets/abelhaWhBG.png">
+  <title>Minha Conta | Servix Solutions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="../index.html" class="brand">Servix <span>Solutions</span></a>
+      <div class="nav-actions">
+        <a href="dashboard.html" class="btn btn-small">Painel</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container content-page">
+      <h1>Minha conta</h1>
+      <p class="section-sub">Gerencie notificações e preferências do seu perfil.</p>
+
+      <div id="account-loading" style="color:var(--text-muted)">Carregando...</div>
+      <div id="account-guest" hidden>
+        <p>Faça login para acessar esta página.</p>
+        <a href="prestador.html" class="btn">Entrar</a>
+      </div>
+
+      <div id="account-main" hidden>
+        <section class="settings-card">
+          <h2>Gerenciar notificações</h2>
+          <p class="form-hint" style="margin-top:0">Receba avisos no painel quando houver 5 ou mais pedidos na sua área, ou quando seu cadastro for alterado.</p>
+          <form id="prefs-form">
+            <label class="toggle-row">
+              <span>Alertar quando houver 5+ pedidos/orçamentos</span>
+              <input type="checkbox" id="pref-many-requests" checked>
+            </label>
+            <label class="toggle-row">
+              <span>Alertar quando o cadastro for alterado</span>
+              <input type="checkbox" id="pref-profile-changes" checked>
+            </label>
+            <button type="submit" class="btn" style="margin-top:1rem">Salvar preferências</button>
+          </form>
+        </section>
+
+        <section class="settings-card">
+          <h2>Notificações recentes</h2>
+          <div id="notif-list" class="notif-list"></div>
+          <button type="button" id="mark-all-read" class="btn btn-secondary" style="margin-top:0.8rem">Marcar todas como lidas</button>
+        </section>
+
+        <p style="margin-top:1rem">
+          <a href="editar-perfil.html">Editar perfil</a> ·
+          <a href="seguranca.html">Segurança e exclusão de conta</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <div class="theme-fab" id="theme-switcher">
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Tema" aria-expanded="false" aria-controls="theme-menu"></button>
+    <div id="theme-menu" class="theme-menu" hidden>
+      <button class="theme-menu-item" type="button" data-theme-mode="light">Tema claro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark">Tema escuro</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system">Sistema</button>
+    </div>
+  </div>
+
+  <script type="module" src="../js/minha-conta.js"></script>
+</body>
+</html>

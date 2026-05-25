@@ -41,17 +41,6 @@
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="container footer-grid">
-      <div>
-        <strong>Servix Solutions</strong>
-        <p>Conectar pessoas a profissionais de servicos de forma rapida, pratica e segura.</p>
-      </div>
-      <div>
-        <p>contato@servixsolutions.com</p>
-      </div>
-    </div>
-  </footer>
 
   <div class="theme-fab" id="theme-switcher">
     <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Abrir menu de tema" aria-expanded="false" aria-controls="theme-menu">
@@ -74,6 +63,10 @@
     </div>
   </div>
 
+  <script type="module">
+    import { injectFooter } from "../js/footer.js";
+    injectFooter();
+  </script>
   <script type="module" src="../js/resultados.js"></script>
 </body>
 </html>
