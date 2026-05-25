@@ -46,6 +46,18 @@
     </div>
   </main>
 
+  <div class="theme-fab" id="theme-switcher">
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Abrir menu de tema" aria-expanded="false" aria-controls="theme-menu">
+      <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+      <span class="theme-icon theme-icon-moon" aria-hidden="true">☽</span>
+    </button>
+    <div id="theme-menu" class="theme-menu" hidden>
+      <button class="theme-menu-item" type="button" data-theme-mode="light"><span class="theme-item-icon" aria-hidden="true">☀</span><span>Tema claro</span></button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark"><span class="theme-item-icon" aria-hidden="true">☽</span><span>Tema escuro</span></button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system"><span class="theme-item-icon" aria-hidden="true">◐</span><span>Padrão do dispositivo</span></button>
+    </div>
+  </div>
+
   <script type="module">
     import { supabase } from "../js/supabase-init.js";
 
