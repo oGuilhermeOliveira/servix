@@ -6,29 +6,29 @@ import { searchServices, findServiceById } from "./service-catalog.js";
  * @param {{ onChange?: (item: object|null) => void }} [opts]
  */
 export function initServiceSearch(root, opts = {}) {
-  const input = root.querySelector("[data-service-input]");
-  const list = root.querySelector("[data-service-list]");
-  const clearBtn = root.querySelector("[data-service-clear]");
+  const input     = root.querySelector("[data-service-input]");
+  const list      = root.querySelector("[data-service-list]");
+  const clearBtn  = root.querySelector("[data-service-clear]");
   const slugInput = root.querySelector("[data-service-slug]");
-  const idInput = root.querySelector("[data-service-id]");
-  const labelInput = root.querySelector("[data-service-label]");
+  const idInput   = root.querySelector("[data-service-id]");
+  const labelInput= root.querySelector("[data-service-label]");
 
-  if (!input || !list) return { getSelection: () => null };
+  if (!input || !list) return { getSelection: () => null, validate: () => null };
 
-  let selected = null;
+  let selected    = null;
   let activeIndex = -1;
 
   function setSelection(item) {
     selected = item;
-    if (slugInput) slugInput.value = item?.slug || "";
-    if (idInput) idInput.value = item?.id || "";
+    if (slugInput)  slugInput.value  = item?.slug  || "";
+    if (idInput)    idInput.value    = item?.id    || "";
     if (labelInput) labelInput.value = item?.label || "";
     if (item) {
       input.value = item.label;
       input.setAttribute("aria-expanded", "false");
     }
-    list.hidden = true;
-    activeIndex = -1;
+    list.hidden  = true;
+    activeIndex  = -1;
     opts.onChange?.(item);
   }
 
@@ -40,11 +40,11 @@ export function initServiceSearch(root, opts = {}) {
     }
     items.forEach((item, i) => {
       const btn = document.createElement("button");
-      btn.type = "button";
+      btn.type      = "button";
       btn.className = "service-suggest-item";
       btn.setAttribute("role", "option");
-      btn.id = `service-opt-${i}`;
-      btn.dataset.index = String(i);
+      btn.id             = `service-opt-${i}`;
+      btn.dataset.index  = String(i);
       btn.innerHTML =
         `<span class="service-suggest-label">${escapeHtml(item.label)}</span>` +
         `<span class="service-suggest-group"> em <em>${escapeHtml(item.group)}</em></span>`;
@@ -61,14 +61,12 @@ export function initServiceSearch(root, opts = {}) {
 
   function openFromInput() {
     const q = input.value.trim();
-    if (!q) {
-      list.hidden = true;
-      return;
-    }
+    if (!q) { list.hidden = true; return; }
     if (selected && selected.label === q) return;
+    // Limpa seleção ao digitar novamente
     selected = null;
-    if (slugInput) slugInput.value = "";
-    if (idInput) idInput.value = "";
+    if (slugInput)  slugInput.value  = "";
+    if (idInput)    idInput.value    = "";
     if (labelInput) labelInput.value = "";
     renderSuggestions(searchServices(q));
   }
@@ -91,9 +89,20 @@ export function initServiceSearch(root, opts = {}) {
       e.preventDefault();
       activeIndex = Math.max(activeIndex - 1, 0);
       highlightOption(options);
-    } else if (e.key === "Enter" && activeIndex >= 0 && options[activeIndex]) {
-      e.preventDefault();
-      options[activeIndex].dispatchEvent(new MouseEvent("mousedown"));
+    } else if (e.key === "Enter") {
+      // Se há item destacado na lista, seleciona ele
+      if (activeIndex >= 0 && options[activeIndex]) {
+        e.preventDefault();
+        options[activeIndex].dispatchEvent(new MouseEvent("mousedown"));
+      } else {
+        // Enter sem item destacado: auto-seleciona o melhor resultado
+        const hits = searchServices(input.value.trim());
+        if (hits.length > 0) {
+          e.preventDefault();
+          setSelection(hits[0]);
+        }
+        // Se não há hits, deixa o form submeter e a validação cuida
+      }
     } else if (e.key === "Escape") {
       list.hidden = true;
       input.setAttribute("aria-expanded", "false");
@@ -124,15 +133,36 @@ export function initServiceSearch(root, opts = {}) {
   return {
     getSelection: () => selected,
     setSelection,
+    /**
+     * Retorna a seleção atual, ou tenta inferir pelo texto digitado.
+     * Aceita: seleção explícita, hidden input preenchido, ou melhor resultado
+     * da busca quando o texto digitado bate com label/slug/keyword.
+     */
     validate: () => {
+      // 1. Já há seleção explícita
       if (selected) return selected;
+
+      // 2. Hidden input preenchido (ex: recarregamento de página)
       const id = idInput?.value;
-      if (id) return findServiceById(id);
+      if (id) {
+        const found = findServiceById(id);
+        if (found) { setSelection(found); return found; }
+      }
+
+      // 3. Tenta inferir pelo texto digitado — aceita o melhor resultado
       const q = input.value.trim();
+      if (!q) return null;
       const hits = searchServices(q, 1);
-      if (hits.length === 1 && normalize(q) === normalize(hits[0].label)) {
-        setSelection(hits[0]);
-        return hits[0];
+      if (hits.length > 0) {
+        // Aceita se o query bate minimamente com label ou slug
+        const norm = normalize(q);
+        const hit  = hits[0];
+        const matchLabel = normalize(hit.label).includes(norm) || norm.includes(normalize(hit.slug));
+        const matchSlug  = normalize(hit.slug).includes(norm)  || norm.includes(normalize(hit.slug));
+        if (matchLabel || matchSlug || norm.length >= 3) {
+          setSelection(hit);
+          return hit;
+        }
       }
       return null;
     },
