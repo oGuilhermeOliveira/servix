@@ -132,7 +132,7 @@ async function run() {
   }
 
   if (!supabase) {
-    if (listEl) listEl.innerHTML = '<p class="results-error">Configure <code>supabase-config.js</code> e recarregue.</p>';
+    if (listEl) listEl.innerHTML = '<p class="results-error">Configure <code>firebase-config.js</code> e recarregue.</p>';
     return;
   }
 

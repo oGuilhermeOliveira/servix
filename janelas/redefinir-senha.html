@@ -66,8 +66,6 @@
     const elError   = document.getElementById("reset-error");
     const elSuccess = document.getElementById("reset-success");
 
-    // O Supabase envia o token na URL como hash (#access_token=...)
-    // O supabase-js detecta automaticamente via onAuthStateChange
     function showForm() {
       elLoading.hidden = true;
       elForm.hidden = false;
@@ -80,6 +78,11 @@
 
     async function init() {
       if (!supabase) { showError(); return; }
+      const hasOobCode = new URLSearchParams(window.location.search).has("oobCode");
+      if (hasOobCode) {
+        showForm();
+        return;
+      }
 
       await new Promise((r) => setTimeout(r, 400));
       const { data: { session } } = await supabase.auth.getSession();

@@ -1,6 +1,7 @@
 import { supabase } from "./supabase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
+import { mergeWithDefaultServiceAreas, saveProviderServiceAreas } from "./provider-areas.js";
 
 const registerForm = document.getElementById("register-form");
 const loginForm = document.getElementById("login-form");
@@ -108,7 +109,10 @@ async function uploadAvatar(userId, file) {
 async function loadAreas() {
   if (!registerAreasHost || !supabase) return;
   const { data, error } = await supabase.from("service_areas").select("id,slug,name").order("name");
-  if (error || !data) {
+  let rows = Array.isArray(data) ? data : [];
+  if (error) rows = [];
+  rows = mergeWithDefaultServiceAreas(rows);
+  if (rows.length === 0) {
     registerAreasHost.innerHTML = '<p class="form-hint">Nao foi possivel carregar areas.</p>';
     return;
   }
@@ -117,7 +121,7 @@ async function loadAreas() {
   const legend = document.createElement("legend");
   legend.textContent = "Areas de atuacao (selecione pelo menos uma)";
   fieldset.appendChild(legend);
-  data.forEach(function (row) {
+  rows.forEach(function (row) {
     const label = document.createElement("label");
     label.className = "pro-area-item";
     const input = document.createElement("input");
@@ -156,15 +160,8 @@ async function saveProviderProfile(userId, email, payload) {
   const upsert = await supabase.from("providers").upsert(upsertData, { onConflict: "auth_user_id" }).select("id").single();
   if (upsert.error) throw upsert.error;
   const providerId = upsert.data.id;
-  const areaIds = payload.areaIds;
-  await supabase.from("provider_service_areas").delete().eq("provider_id", providerId);
-  const links = areaIds.map(function (areaId) {
-    return { provider_id: providerId, area_id: areaId };
-  });
-  if (links.length > 0) {
-    const ins = await supabase.from("provider_service_areas").insert(links);
-    if (ins.error) throw ins.error;
-  }
+  const areaSave = await saveProviderServiceAreas(supabase, providerId, payload.areaIds);
+  if (areaSave.error) throw new Error(areaSave.error.message || "Erro ao salvar areas de atuacao.");
 }
 
 function collectRegisterPayload() {
@@ -259,6 +256,7 @@ async function ensureProviderRow(user, email) {
   const ins = await supabase
     .from("providers")
     .insert({
+      id: user.id,
       auth_user_id: user.id,
       email: normalizedEmail,
       full_name: "",
@@ -348,7 +346,7 @@ if (cepInput) {
 registerForm.addEventListener("submit", async function (event) {
   event.preventDefault();
   if (!supabase) {
-    showMessage("register-form", "Configure o supabase-config.js primeiro.", true);
+    showMessage("register-form", "Configure o firebase-config.js primeiro.", true);
     return;
   }
 
@@ -407,7 +405,7 @@ registerForm.addEventListener("submit", async function (event) {
 loginForm.addEventListener("submit", async function (event) {
   event.preventDefault();
   if (!supabase) {
-    showMessage("login-form", "Configure o supabase-config.js primeiro.", true);
+    showMessage("login-form", "Configure o firebase-config.js primeiro.", true);
     return;
   }
   const email = document.getElementById("login-email").value.trim();

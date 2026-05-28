@@ -2,6 +2,7 @@ import { supabase } from "./supabase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 import { notifyManyRequestsIfNeeded, notifyProfileUpdated } from "./notifications.js";
+import { loadProviderAreas } from "./provider-areas.js";
 
 injectFooter();
 setupThemeSwitcher();
@@ -130,7 +131,7 @@ async function dismissRequest(requestId) {
     request_id: requestId,
   });
   if (error) {
-    alert("Não foi possível ocultar o pedido. Execute migration_007 no Supabase.");
+    alert("Não foi possível ocultar o pedido. Verifique as regras do Firestore (coleção provider_dismissed_requests).");
     return;
   }
   state.dismissedIds.add(requestId);
@@ -239,7 +240,7 @@ async function loadCompletedServices() {
     .limit(50);
 
   if (error) {
-    elCompletedBody.innerHTML = `<tr><td colspan="4">Execute migration_007 no Supabase.</td></tr>`;
+    elCompletedBody.innerHTML = `<tr><td colspan="4">Não foi possível carregar serviços concluídos (Firestore).</td></tr>`;
     return;
   }
 
@@ -391,8 +392,12 @@ async function init() {
   }
 
   state.provider = provider;
-  state.areas = (provider.provider_service_areas || []).map((l) => l.service_areas).filter(Boolean);
-  state.providerSlugs = state.areas.map((a) => a.slug);
+  state.areas = await loadProviderAreas(supabase, provider.id);
+  if (!state.areas.length) {
+    const nested = (provider.provider_service_areas || []).map((l) => l.service_areas).filter(Boolean);
+    state.areas = nested;
+  }
+  state.providerSlugs = state.areas.map((a) => a.slug).filter(Boolean);
 
   renderProfile(provider, state.areas);
   populateAreaFilter(state.areas);

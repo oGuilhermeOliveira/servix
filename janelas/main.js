@@ -167,7 +167,7 @@ if (quickForm) {
     const areaSlugs   = getAreaSlugsForHeroCategory(category);
 
     if (!supabase) {
-      showMessage("quick-form", "Configure supabase-config.js com URL e chave anon do Supabase.", true);
+      showMessage("quick-form", "Configure firebase-config.js com as credenciais do Firebase.", true);
       return;
     }
     if (areaSlugs.length === 0) {

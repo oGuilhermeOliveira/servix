@@ -1,6 +1,7 @@
 import { supabase } from "./supabase-init.js";
 import { injectFooter } from "./footer.js";
 import { notifyProfileUpdated } from "./notifications.js";
+import { mergeWithDefaultServiceAreas, saveProviderServiceAreas } from "./provider-areas.js";
 
 injectFooter();
 
@@ -134,14 +135,17 @@ let allAreas = [];
 
 async function loadAreas(selectedIds = []) {
   const { data, error } = await supabase.from("service_areas").select("id,slug,name").order("name");
-  if (error || !data) { elAreasHost.innerHTML = '<p class="form-hint">Não foi possível carregar áreas.</p>'; return; }
-  allAreas = data;
+  let rows = Array.isArray(data) ? data : [];
+  if (error) rows = [];
+  rows = mergeWithDefaultServiceAreas(rows);
+  if (rows.length === 0) { elAreasHost.innerHTML = '<p class="form-hint">Não foi possível carregar áreas.</p>'; return; }
+  allAreas = rows;
   const fieldset = document.createElement("fieldset");
   fieldset.className = "pro-areas-fieldset";
   const legend = document.createElement("legend");
   legend.textContent = "Selecione pelo menos uma área";
   fieldset.appendChild(legend);
-  data.forEach(row => {
+  rows.forEach(row => {
     const label = document.createElement("label");
     label.className = "pro-area-item";
     const input = document.createElement("input");
@@ -257,24 +261,8 @@ elForm.addEventListener("submit", async e => {
     const { error: upErr } = await supabase.from("providers").update(updateData).eq("id", prov.id);
     if (upErr) throw upErr;
 
-    // Atualiza áreas — apaga tudo e reinsere
-    const { error: delErr } = await supabase
-      .from("provider_service_areas")
-      .delete()
-      .eq("provider_id", prov.id);
-    if (delErr) throw new Error("Erro ao remover áreas antigas: " + delErr.message);
-
-    if (areaIds.length > 0) {
-      // Tenta primeiro com service_area_id, depois com area_id
-      let links = areaIds.map(areaId => ({ provider_id: prov.id, service_area_id: areaId }));
-      let { error: aErr } = await supabase.from("provider_service_areas").insert(links);
-      if (aErr) {
-        // Fallback: tenta com area_id
-        links = areaIds.map(areaId => ({ provider_id: prov.id, area_id: areaId }));
-        const { error: aErr2 } = await supabase.from("provider_service_areas").insert(links);
-        if (aErr2) throw new Error("Erro ao salvar áreas: " + aErr2.message);
-      }
-    }
+    const areaSave = await saveProviderServiceAreas(supabase, prov.id, areaIds);
+    if (areaSave.error) throw new Error(areaSave.error.message || "Erro ao salvar areas.");
 
     await notifyProfileUpdated(prov.id);
 

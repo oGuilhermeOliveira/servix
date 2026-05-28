@@ -190,7 +190,7 @@ if (quickForm) {
     const cepRaw      = cepInput?.value || "";
 
     if (!supabase) {
-      showMessage("quick-form", "Configure supabase-config.js.", true);
+      showMessage("quick-form", "Configure firebase-config.js.", true);
       return;
     }
     if (!service?.slug) {
