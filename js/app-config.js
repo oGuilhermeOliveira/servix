@@ -4,8 +4,6 @@ export const APP = {
   version: "1.0.0",
   developer: "Servix Solutions",
   distribution: "Plataforma web (HTML + Firebase)",
-  contactEmail: "contato@servixsolutions.com",
-  contactPhone: "(11) 99999-0000",
-  contactWhatsApp: "5511999990000",
+  contactEmail: "servixsolutionsconnect@outlook.com",
   launchedAt: "2025",
 };

@@ -44,7 +44,7 @@ export function injectFooter() {
           <dt>Versão</dt><dd>${APP.version}</dd>
           <dt>Desenvolvedor</dt><dd>${APP.developer}</dd>
           <dt>Distribuição</dt><dd>${APP.distribution}</dd>
-          <dt>Contato</dt><dd><a href="${mailto}">${APP.contactEmail}</a></dd>
+          <dt>Contato</dt><dd><a style="color: var(--accent);" href="${mailto}">${APP.contactEmail}</a></dd>
         </dl>
       </div>
     </div>

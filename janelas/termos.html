@@ -20,7 +20,7 @@
       <p><em>Última atualização: maio de 2026.</em></p>
 
       <h2>1. Aceitação</h2>
-      <p>Ao criar conta ou utilizar o Servix Solutions, você declara ter lido e aceito estes Termos e a <a href="privacidade.html">Política de Privacidade</a>, em conformidade com a LGPD.</p>
+      <p>Ao criar conta ou utilizar o Servix Solutions, você declara ter lido e aceito estes Termos e a <a href="privacidade.html" style="color: var(--accent);">Política de Privacidade</a>, em conformidade com a LGPD.</p>
 
       <h2>2. Objeto</h2>
       <p>A plataforma conecta pessoas que buscam serviços a prestadores cadastrados. O Servix não executa os serviços contratados nem garante a qualidade do trabalho realizado entre as partes.</p>
@@ -63,16 +63,29 @@
     import { injectFooter } from "../js/footer.js";
     import { setupThemeSwitcher } from "../js/theme.js";
     document.getElementById("terms-email").href = `mailto:${APP.contactEmail}`;
+    document.getElementById("terms-email").style.color = "var(--accent)";
     document.getElementById("terms-email").textContent = APP.contactEmail;
     injectFooter();
     setupThemeSwitcher();
   </script>
   <div class="theme-fab" id="theme-switcher">
-    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Tema"></button>
+    <button id="theme-fab-button" class="theme-fab-button" type="button" aria-label="Abrir menu de tema" aria-expanded="false" aria-controls="theme-menu">
+      <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+      <span class="theme-icon theme-icon-moon" aria-hidden="true">☽</span>
+    </button>
     <div id="theme-menu" class="theme-menu" hidden>
-      <button class="theme-menu-item" type="button" data-theme-mode="light">Tema claro</button>
-      <button class="theme-menu-item" type="button" data-theme-mode="dark">Tema escuro</button>
-      <button class="theme-menu-item" type="button" data-theme-mode="system">Sistema</button>
+      <button class="theme-menu-item" type="button" data-theme-mode="light">
+        <span class="theme-item-icon" aria-hidden="true">☀</span>
+        <span>Tema claro</span>
+      </button>
+      <button class="theme-menu-item" type="button" data-theme-mode="dark">
+        <span class="theme-item-icon" aria-hidden="true">☽</span>
+        <span>Tema escuro</span>
+      </button>
+      <button class="theme-menu-item" type="button" data-theme-mode="system">
+        <span class="theme-item-icon" aria-hidden="true">◐</span>
+        <span>Padrão do dispositivo</span>
+      </button> 
     </div>
   </div>
 </body>
