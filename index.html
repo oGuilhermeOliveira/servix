@@ -21,8 +21,8 @@
         <a href="#depoimentos">Depoimentos</a>
       </nav>
       <div class="nav-actions">
-        <a href="janelas/prestador.html#login" class="btn btn-small btn-secondary">Entrar</a>
-        <a href="janelas/prestador.html" class="btn btn-small">Seja profissional</a>
+
+        <a id="nav-pro-btn" href="janelas/prestador.html" class="btn btn-small">Seja profissional</a>
       </div>
     </div>
   </header>
@@ -36,7 +36,7 @@
           <p class="lead">Encanador, diarista, eletricista, pintor e muito mais perto de você. Rápido, prático e seguro.</p>
           <div class="hero-actions">
             <a class="btn" href="#pedido">Buscar serviço</a>
-            <a class="btn btn-secondary" href="janelas/prestador.html">Quero ser profissional</a>
+            <a id="hero-pro-btn" class="btn btn-secondary" href="janelas/prestador.html">Quero ser profissional</a>
           </div>
           <p class="trust">4.8 de avaliação média | Atendimento no Alto Tietê</p>
         </div>
@@ -168,21 +168,6 @@
     </div>
   </div>
 
-  <script type="module">
-    import { db } from "./js/firebase-init.js";
-    if (db) {
-      db.auth.getUser().then(function({ data }) {
-        if (data?.user) {
-          const title = document.getElementById("pro-card-title");
-          const desc  = document.getElementById("pro-card-desc");
-          const btn   = document.getElementById("pro-card-btn");
-          if (title) title.textContent = "Acesse sua conta";
-          if (desc)  desc.hidden = true;
-          if (btn)   { btn.textContent = "Acesse seu painel"; btn.href = "janelas/dashboard.html"; }
-        }
-      });
-    }
-  </script>
   <script type="module">
     import { injectFooter } from "./js/footer.js";
     injectFooter();

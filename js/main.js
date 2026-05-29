@@ -229,19 +229,93 @@ async function loadTestimonials() {
 
 loadTestimonials();
 
-// Card do prestador: muda se logado
-if (db) {
-  db.auth.getUser().then(({ data }) => {
-    if (data?.user) {
-      const title = document.getElementById("pro-card-title");
-      const desc  = document.getElementById("pro-card-desc");
-      const btn   = document.getElementById("pro-card-btn");
-      if (title) title.textContent = "Acesse sua conta";
-      if (desc)  desc.hidden = true;
-      if (btn) { btn.textContent = "Acesse seu painel"; btn.href = "janelas/dashboard.html"; }
+/** Rolagem suave ao clicar nos links âncora do menu (compensa header sticky). */
+function setupSmoothNavScroll() {
+  const topbar = document.querySelector(".topbar");
+  const scrollOffset = () => (topbar ? topbar.offsetHeight : 74) + 12;
+
+  document.querySelectorAll('.menu a[href^="#"]').forEach(function (link) {
+    link.addEventListener("click", function (event) {
+      const hash = link.getAttribute("href");
+      if (!hash || hash === "#") return;
+      const target = document.querySelector(hash);
+      if (!target) return;
+      event.preventDefault();
+      const top = target.getBoundingClientRect().top + window.scrollY - scrollOffset();
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      history.pushState(null, "", hash);
+    });
+  });
+
+  const brand = document.querySelector(".brand[href='#'], .brand[href='']");
+  if (brand) {
+    brand.addEventListener("click", function (event) {
+      event.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      history.pushState(null, "", window.location.pathname);
+    });
+  }
+}
+
+setupSmoothNavScroll();
+
+const DASHBOARD_HREF = "janelas/dashboard.html";
+const PANEL_LABEL = "Acesse o Painel";
+
+function applyHomePageForLoggedInProvider(isLoggedIn) {
+  const navProBtn = document.getElementById("nav-pro-btn");
+  const heroProBtn = document.getElementById("hero-pro-btn");
+  const proCardTitle = document.getElementById("pro-card-title");
+  const proCardDesc = document.getElementById("pro-card-desc");
+  const proCardBtn = document.getElementById("pro-card-btn");
+
+  if (isLoggedIn) {
+    if (navProBtn) {
+      navProBtn.textContent = PANEL_LABEL;
+      navProBtn.href = DASHBOARD_HREF;
     }
+    if (heroProBtn) {
+      heroProBtn.textContent = PANEL_LABEL;
+      heroProBtn.href = DASHBOARD_HREF;
+    }
+    if (proCardTitle) proCardTitle.textContent = "Acesse sua conta";
+    if (proCardDesc) proCardDesc.hidden = true;
+    if (proCardBtn) {
+      proCardBtn.textContent = PANEL_LABEL;
+      proCardBtn.href = DASHBOARD_HREF;
+    }
+    return;
+  }
+
+  if (navProBtn) {
+    navProBtn.textContent = "Seja profissional";
+    navProBtn.href = "janelas/prestador.html";
+  }
+  if (heroProBtn) {
+    heroProBtn.textContent = "Quero ser profissional";
+    heroProBtn.href = "janelas/prestador.html";
+  }
+  if (proCardTitle) proCardTitle.textContent = "Cadastro em página dedicada";
+  if (proCardDesc) proCardDesc.hidden = false;
+  if (proCardBtn) {
+    proCardBtn.textContent = "Ir para cadastro do prestador";
+    proCardBtn.href = "janelas/prestador.html";
+  }
+}
+
+function setupHomeAuthNav() {
+  if (!db) return;
+  db.auth.getUser().then(({ data }) => {
+    applyHomePageForLoggedInProvider(Boolean(data?.user));
+  });
+  db.auth.onAuthStateChange(function () {
+    db.auth.getUser().then(({ data }) => {
+      applyHomePageForLoggedInProvider(Boolean(data?.user));
+    });
   });
 }
+
+setupHomeAuthNav();
 
 // --- Submit ---
 const quickForm = document.getElementById("quick-form");
