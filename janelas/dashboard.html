@@ -76,38 +76,52 @@
     .profile-info {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      margin-top: 0.8rem;
+      align-items: center;
+      gap: 0.55rem;
+      margin-top: 0.9rem;
+      text-align: center;
     }
 
     .profile-info-row {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.45rem;
       font-size: 0.88rem;
       color: var(--text-soft);
-      align-items: flex-start;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      line-height: 1.4;
     }
 
     .profile-info-row .info-icon {
       flex-shrink: 0;
       color: var(--accent);
+      font-size: 0.95rem;
+      line-height: 1;
     }
 
-    .profile-rating-row {
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.35rem 0.5rem;
+    .profile-rating-block {
+      width: 100%;
+      padding-bottom: 0.65rem;
+      margin-bottom: 0.15rem;
+      border-bottom: 1px solid var(--border);
     }
 
     #profile-rating {
-      display: inline-flex;
-      flex-wrap: wrap;
+      display: flex;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 0.35rem;
+      width: 100%;
+      font-size: 0.88rem;
+      color: var(--text-soft);
     }
 
     .profile-areas {
       margin-top: 1rem;
+      text-align: center;
+      width: 100%;
     }
 
     .profile-areas-title {
@@ -117,12 +131,14 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 0.5rem;
+      text-align: center;
     }
 
     .areas-tags {
       display: flex;
       flex-wrap: wrap;
       gap: 0.4rem;
+      justify-content: center;
     }
 
     .area-tag {
@@ -308,9 +324,8 @@
             </div>
 
             <div class="profile-info">
-              <div class="profile-info-row profile-rating-row" id="profile-rating-row">
-                <span class="info-icon">⭐</span>
-                <span id="profile-rating">Carregando avaliação...</span>
+              <div class="profile-rating-block" id="profile-rating-row">
+                <div id="profile-rating">Carregando avaliação...</div>
               </div>
               <div class="profile-info-row">
                 <span class="info-icon">📞</span>

@@ -226,11 +226,12 @@ async function renderProviderRating(providerId) {
     return;
   }
 
-  elProfileRating.appendChild(renderStarRating(avg, { showValue: true }));
+  elProfileRating.appendChild(renderStarRating(avg, { showValue: false }));
   const label = document.createElement("span");
   label.className = "profile-rating-label";
-  label.textContent =
-    `Média ${formatRatingValue(avg)} · ${count} avaliação${count === 1 ? "" : "ões"}`;
+  label.textContent = `Média ${formatRatingValue(avg)} · ${count} ${
+    count === 1 ? "avaliação" : "avaliações"
+  }`;
   elProfileRating.appendChild(label);
 }
 
