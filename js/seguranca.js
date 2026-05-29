@@ -1,4 +1,4 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 
@@ -30,7 +30,7 @@ gotoForgot.addEventListener("click", (e) => {
 
 changeForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (!supabase) return;
+  if (!db) return;
 
   const current = document.getElementById("current-password").value;
   const next = document.getElementById("new-password").value;
@@ -41,13 +41,13 @@ changeForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user?.email) {
     alert("Sessão inválida.");
     return;
   }
 
-  const verify = await supabase.auth.signInWithPassword({
+  const verify = await db.auth.reauthenticate({
     email: user.email,
     password: current,
   });
@@ -57,7 +57,7 @@ changeForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  const { error } = await supabase.auth.updateUser({ password: next });
+  const { error } = await db.auth.updateUser({ password: next });
   if (error) alert("Erro: " + error.message);
   else {
     alert("Senha atualizada com sucesso.");
@@ -75,25 +75,25 @@ deleteBtn.addEventListener("click", async () => {
   deleteBtn.disabled = true;
   deleteBtn.textContent = "Excluindo...";
 
-  const { error } = await supabase.rpc("delete_own_provider_account");
+  const { error } = await db.rpc("delete_own_provider_account");
 
   if (error) {
-    alert("Erro ao excluir conta: " + error.message + "\n\nExecute a migration_007 no Supabase se ainda não aplicou.");
+    alert("Erro ao excluir conta: " + error.message);
     deleteBtn.disabled = false;
     deleteBtn.textContent = "Excluir minha conta";
     return;
   }
 
-  await supabase.auth.signOut();
+  await db.auth.signOut();
   window.location.href = "../index.html?conta=excluida";
 });
 
 async function init() {
-  if (!supabase) {
+  if (!db) {
     show("guest");
     return;
   }
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   show(user ? "main" : "guest");
 }
 

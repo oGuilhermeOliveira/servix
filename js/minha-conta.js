@@ -1,4 +1,4 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 import {
@@ -78,18 +78,18 @@ markAllBtn.addEventListener("click", async () => {
 });
 
 async function init() {
-  if (!supabase) {
+  if (!db) {
     show("guest");
     return;
   }
   show("loading");
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) {
     show("guest");
     return;
   }
 
-  const { data: provider } = await supabase
+  const { data: provider } = await db
     .from("providers")
     .select("id")
     .eq("auth_user_id", user.id)

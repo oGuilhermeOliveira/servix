@@ -1,7 +1,12 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
+import { uploadProviderAvatar, validateAvatarFile } from "./avatar-upload.js";
 import { injectFooter } from "./footer.js";
 import { notifyProfileUpdated } from "./notifications.js";
-import { mergeWithDefaultServiceAreas, saveProviderServiceAreas } from "./provider-areas.js";
+import {
+  loadProviderAreas,
+  mergeWithDefaultServiceAreas,
+  saveProviderServiceAreas,
+} from "./provider-areas.js";
 
 injectFooter();
 
@@ -51,6 +56,7 @@ const fNumber       = document.getElementById("edit-number");
 const fNeighborhood = document.getElementById("edit-neighborhood");
 const fCity         = document.getElementById("edit-city");
 const fState        = document.getElementById("edit-state");
+const cepAddressPanel = document.getElementById("edit-cep-address");
 
 function showState(s) {
   elLoading.hidden   = s !== "loading";
@@ -88,34 +94,106 @@ if (fPhone) {
   fPhone.addEventListener("input", () => { fPhone.value = formatPhone(fPhone.value); });
 }
 
-fCep.addEventListener("input", () => { fCep.value = formatCep(fCep.value); });
-fCep.addEventListener("blur", async () => {
-  const digits = normalizeCep(fCep.value);
-  if (digits.length !== 8) return;
-  try {
-    const res  = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-    const data = await res.json();
-    if (!data.erro) {
-      if (fStreet.value === "" || fStreet.dataset.auto === "1") { fStreet.value = data.logradouro || ""; fStreet.dataset.auto = "1"; }
-      if (fNeighborhood.value === "" || fNeighborhood.dataset.auto === "1") { fNeighborhood.value = data.bairro || ""; fNeighborhood.dataset.auto = "1"; }
-      fCity.value  = data.localidade || fCity.value;
-      fState.value = (data.uf || fState.value).toUpperCase();
-      if (fNumber.value === "") fNumber.focus();
-    }
-  } catch(e) { console.warn("ViaCEP:", e); }
-});
+function showCepAddressPanel() {
+  if (!cepAddressPanel) return;
+  const parts = [fStreet.value, fNeighborhood.value, fCity.value, fState.value].filter(Boolean);
+  if (!parts.length) {
+    cepAddressPanel.hidden = true;
+    return;
+  }
+  cepAddressPanel.textContent = "📍 " + parts.join(", ");
+  cepAddressPanel.hidden = false;
+}
 
-// Ao editar manualmente, remove flag de auto-preenchido
-[fStreet, fNeighborhood].forEach(el => {
-  el.addEventListener("input", () => { el.dataset.auto = "0"; });
-});
+async function fetchAddressByCep(cep) {
+  const digits = normalizeCep(cep);
+  if (digits.length !== 8) return null;
+  const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+  if (!res.ok) throw new Error("Falha ao consultar CEP.");
+  const data = await res.json();
+  if (data.erro) return null;
+  return data;
+}
+
+function applyViaCepData(data) {
+  if (!data) return;
+  fStreet.value = data.logradouro || "";
+  fNeighborhood.value = data.bairro || "";
+  fCity.value = data.localidade || "";
+  fState.value = (data.uf || "").toUpperCase();
+  showCepAddressPanel();
+}
+
+function composeAddress() {
+  const cep = formatCep(fCep.value || "");
+  const street = (fStreet.value || "").trim();
+  const number = (fNumber.value || "").trim();
+  const neighborhood = (fNeighborhood.value || "").trim();
+  const city = (fCity.value || "").trim();
+  const state = (fState.value || "").trim().toUpperCase();
+  const address = [street, number, neighborhood, city, state, cep].filter(Boolean).join(", ");
+  return { address, city, state, cep: normalizeCep(cep) };
+}
+
+function parseStoredAddress(provider) {
+  const parts = (provider.address || "").split(",").map((s) => s.trim());
+  let street = "";
+  let number = "";
+  let neighborhood = "";
+  let city = provider.city || "";
+  let state = (provider.state || "").toUpperCase();
+  let cep = provider.cep || "";
+
+  if (parts.length >= 6) {
+    street = parts[0] || "";
+    number = parts[1] || "";
+    neighborhood = parts[2] || "";
+    city = parts[3] || city;
+    state = (parts[4] || state).toUpperCase();
+    cep = parts[5] || cep;
+  } else if (parts.length >= 2) {
+    street = parts[0] || "";
+    number = parts[1] || "";
+  }
+
+  return { street, number, neighborhood, city, state, cep: normalizeCep(cep) };
+}
+
+if (fCep) {
+  fCep.addEventListener("input", () => {
+    fCep.value = formatCep(fCep.value);
+    if (cepAddressPanel) cepAddressPanel.hidden = true;
+  });
+  fCep.addEventListener("blur", async () => {
+    const digits = normalizeCep(fCep.value);
+    if (digits.length !== 8) return;
+    try {
+      const data = await fetchAddressByCep(digits);
+      if (!data) {
+        showError("CEP não encontrado.");
+        return;
+      }
+      clearError();
+      applyViaCepData(data);
+      if (!fNumber.value) fNumber.focus();
+    } catch (e) {
+      showError(e.message || "Não foi possível consultar o CEP.");
+    }
+  });
+}
 
 // --- Preview da foto ---
 elPhoto.addEventListener("change", () => {
   const file = elPhoto.files?.[0];
   if (!file) return;
-  const url = URL.createObjectURL(file);
-  setAvatarPreview(url);
+  const check = validateAvatarFile(file);
+  if (!check.ok) {
+    showError(check.message);
+    elPhoto.value = "";
+    return;
+  }
+  clearError();
+  setAvatarPreview(URL.createObjectURL(file));
 });
 
 function setAvatarPreview(url) {
@@ -134,7 +212,7 @@ function setAvatarPreview(url) {
 let allAreas = [];
 
 async function loadAreas(selectedIds = []) {
-  const { data, error } = await supabase.from("service_areas").select("id,slug,name").order("name");
+  const { data, error } = await db.from("service_areas").select("id,slug,name").order("name");
   let rows = Array.isArray(data) ? data : [];
   if (error) rows = [];
   rows = mergeWithDefaultServiceAreas(rows);
@@ -151,8 +229,9 @@ async function loadAreas(selectedIds = []) {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.name = "edit_area";
-    input.value = row.id;
-    input.checked = selectedIds.includes(row.id);
+    input.value = row.slug || row.id;
+    const areaKey = row.slug || row.id;
+    input.checked = selectedIds.includes(areaKey) || selectedIds.includes(row.id);
     label.appendChild(input);
     const txt = document.createElement("span");
     txt.textContent = row.name;
@@ -164,16 +243,6 @@ async function loadAreas(selectedIds = []) {
 
 function selectedAreaIds() {
   return Array.from(document.querySelectorAll('input[name="edit_area"]:checked')).map(i => i.value);
-}
-
-// --- Upload avatar ---
-async function uploadAvatar(userId, file) {
-  if (!file) return null;
-  const ext  = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const path = `${userId}/avatar-${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from("provider-avatars").upload(path, file, { upsert: true });
-  if (error) throw error;
-  return supabase.storage.from("provider-avatars").getPublicUrl(path).data.publicUrl || null;
 }
 
 // --- Geocodificação pelo CEP ---
@@ -192,21 +261,17 @@ async function geocodeCep(cep) {
 
 // --- Preenche formulário com dados existentes ---
 function fillForm(provider, areaIds) {
-  fName.value  = provider.full_name  || "";
-  fPhone.value = provider.phone      || "";
+  fName.value = provider.full_name || "";
+  fPhone.value = formatPhone(provider.phone || "");
 
-  // Tenta extrair CEP e número do campo address
-  const addr = provider.address || "";
-  // address foi montado como: "rua, numero, bairro, cidade, estado, cep"
-  const parts = addr.split(",").map(s => s.trim());
-  if (parts.length >= 6) {
-    fStreet.value       = parts[0] || "";
-    fNumber.value       = parts[1] || "";
-    fNeighborhood.value = parts[2] || "";
-  }
-  fCity.value  = provider.city  || "";
-  fState.value = (provider.state || "").toUpperCase();
-  // CEP não é armazenado separado — só mostramos cidade/estado
+  const parsed = parseStoredAddress(provider);
+  fStreet.value = parsed.street;
+  fNeighborhood.value = parsed.neighborhood;
+  fCity.value = parsed.city;
+  fState.value = parsed.state;
+  fNumber.value = parsed.number;
+  if (parsed.cep) fCep.value = formatCep(parsed.cep);
+  showCepAddressPanel();
 
   if (provider.avatar_url) setAvatarPreview(provider.avatar_url);
   loadAreas(areaIds);
@@ -219,49 +284,58 @@ elForm.addEventListener("submit", async e => {
 
   const areaIds = selectedAreaIds();
   if (areaIds.length === 0) { showError("Selecione ao menos uma área de atuação."); return; }
-  if (!fCity.value.trim() || !fState.value.trim()) { showError("Preencha cidade e estado."); return; }
+  const cepDigits = normalizeCep(fCep.value);
+  if (cepDigits.length !== 8) { showError("Informe um CEP válido com 8 dígitos."); return; }
+  if (!fNumber.value.trim()) { showError("Informe o número do endereço."); return; }
+  if (!fStreet.value.trim() || !fCity.value.trim() || !fState.value.trim()) {
+    showError("Consulte o CEP para preencher o endereço automaticamente.");
+    return;
+  }
 
   const submitBtn = elForm.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   submitBtn.textContent = "Salvando...";
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await db.auth.getUser();
     if (!user) throw new Error("Sessão expirada. Faça login novamente.");
 
     // Avatar
-    const file      = elPhoto.files?.[0] || null;
-    let   avatarUrl = null;
+    const { data: prov } = await db
+      .from("providers")
+      .select("id, avatar_url")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (!prov) throw new Error("Perfil não encontrado.");
+
+    const file = elPhoto.files?.[0] || null;
+    let avatarUrl = null;
     if (file) {
-      avatarUrl = await uploadAvatar(user.id, file);
+      avatarUrl = await uploadProviderAvatar(user.id, file, prov.avatar_url);
     }
 
-    // Geocode pelo CEP informado
+    const composed = composeAddress();
     const coords = await geocodeCep(fCep.value);
-
-    // Monta endereço
-    const addressParts = [fStreet.value.trim(), fNumber.value.trim(), fNeighborhood.value.trim(), fCity.value.trim(), fState.value.trim().toUpperCase(), formatCep(fCep.value)];
-    const address = addressParts.filter(Boolean).join(", ");
-
-    // Busca o ID do provider
-    const { data: prov } = await supabase.from("providers").select("id, avatar_url").eq("auth_user_id", user.id).single();
-    if (!prov) throw new Error("Perfil não encontrado.");
 
     const updateData = {
       full_name: fName.value.trim(),
-      phone:     fPhone.value.trim(),
-      address,
-      city:      fCity.value.trim(),
-      state:     fState.value.trim().toUpperCase(),
-      lat:       coords.lat,
-      lng:       coords.lng,
+      phone: fPhone.value.trim(),
+      address: composed.address,
+      city: composed.city,
+      state: composed.state,
+      cep: composed.cep,
+      lat: coords.lat,
+      lng: coords.lng,
     };
     if (avatarUrl) updateData.avatar_url = avatarUrl;
 
-    const { error: upErr } = await supabase.from("providers").update(updateData).eq("id", prov.id);
-    if (upErr) throw upErr;
+    const { error: upErr } = await db
+      .from("providers")
+      .update(updateData)
+      .eq("auth_user_id", user.id);
+    if (upErr) throw new Error(upErr.message || "Erro ao atualizar perfil.");
 
-    const areaSave = await saveProviderServiceAreas(supabase, prov.id, areaIds);
+    const areaSave = await saveProviderServiceAreas(db, prov.id, areaIds);
     if (areaSave.error) throw new Error(areaSave.error.message || "Erro ao salvar areas.");
 
     await notifyProfileUpdated(prov.id);
@@ -283,22 +357,34 @@ elForm.addEventListener("submit", async e => {
 
 // --- Init ---
 async function init() {
-  if (!supabase) { showState("not-logged"); return; }
+  if (!db) { showState("not-logged"); return; }
   showState("loading");
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) { showState("not-logged"); return; }
 
-  const { data: provider, error } = await supabase
+  const { data: provider, error } = await db
     .from("providers")
-    .select("id, full_name, phone, city, state, address, avatar_url, provider_service_areas(area_id)")
+    .select("id, full_name, phone, city, state, address, cep, avatar_url")
     .eq("auth_user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (error || !provider) { showState("not-logged"); return; }
 
-  const areaIds = (provider.provider_service_areas || []).map(l => l.area_id);
+  const linkedAreas = await loadProviderAreas(db, provider.id);
+  const areaIds = linkedAreas.map((a) => a.slug || a.id);
   fillForm(provider, areaIds);
+
+  const cepDigits = normalizeCep(fCep.value);
+  if (cepDigits.length === 8 && !fStreet.value.trim()) {
+    try {
+      const data = await fetchAddressByCep(cepDigits);
+      if (data) applyViaCepData(data);
+    } catch (e) {
+      console.warn("ViaCEP init:", e);
+    }
+  }
+
   showState("main");
 }
 

@@ -1,2 +1,3 @@
-supabase-config.js
-
+# Credenciais locais (não versionar)
+js/firebase-config.js
+js/cloudinary-config.js

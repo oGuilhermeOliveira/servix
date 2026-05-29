@@ -59,7 +59,7 @@
   </div>
 
   <script type="module">
-    import { supabase } from "../js/supabase-init.js";
+    import { db } from "../js/firebase-init.js";
 
     const elLoading = document.getElementById("reset-loading");
     const elForm    = document.getElementById("reset-form");
@@ -77,7 +77,7 @@
     }
 
     async function init() {
-      if (!supabase) { showError(); return; }
+      if (!db) { showError(); return; }
       const hasOobCode = new URLSearchParams(window.location.search).has("oobCode");
       if (hasOobCode) {
         showForm();
@@ -85,13 +85,13 @@
       }
 
       await new Promise((r) => setTimeout(r, 400));
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await db.auth.getSession();
       if (session) {
         showForm();
         return;
       }
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
+      const { data: { subscription } } = db.auth.onAuthStateChange((event, sess) => {
         if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && sess) {
           showForm();
           subscription?.unsubscribe();
@@ -124,7 +124,7 @@
       btn.disabled    = true;
       btn.textContent = "Salvando...";
 
-      const { error } = await supabase.auth.updateUser({ password: pass });
+      const { error } = await db.auth.updateUser({ password: pass });
 
       btn.disabled    = false;
       btn.textContent = "Salvar nova senha";

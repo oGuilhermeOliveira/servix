@@ -1,6 +1,6 @@
 /**
  * Catálogo focado em serviços para casa (busca na home).
- * slug → service_areas no Supabase
+ * slug → coleção service_areas no Firestore
  */
 export const SERVICE_GROUPS = {
   REFORMAS: "Reformas e Reparos",

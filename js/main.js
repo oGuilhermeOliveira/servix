@@ -1,4 +1,4 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
 import { initServiceSearch } from "./service-search.js";
 import { searchServices } from "./service-catalog.js";
 
@@ -164,8 +164,8 @@ if (serviceInput && hintEl) {
 }
 
 // Card do prestador: muda se logado
-if (supabase) {
-  supabase.auth.getUser().then(({ data }) => {
+if (db) {
+  db.auth.getUser().then(({ data }) => {
     if (data?.user) {
       const title = document.getElementById("pro-card-title");
       const desc  = document.getElementById("pro-card-desc");
@@ -189,7 +189,7 @@ if (quickForm) {
     const clientPhone = document.getElementById("client-phone")?.value?.trim() || "";
     const cepRaw      = cepInput?.value || "";
 
-    if (!supabase) {
+    if (!db) {
       showMessage("quick-form", "Configure firebase-config.js.", true);
       return;
     }

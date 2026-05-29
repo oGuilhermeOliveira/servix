@@ -167,9 +167,9 @@
   </div>
 
   <script type="module">
-    import { supabase } from "./js/supabase-init.js";
-    if (supabase) {
-      supabase.auth.getUser().then(function({ data }) {
+    import { db } from "./js/firebase-init.js";
+    if (db) {
+      db.auth.getUser().then(function({ data }) {
         if (data?.user) {
           const title = document.getElementById("pro-card-title");
           const desc  = document.getElementById("pro-card-desc");

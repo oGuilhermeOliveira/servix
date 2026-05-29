@@ -1,4 +1,4 @@
-import { supabase } from "../js/supabase-init.js";
+import { db } from "../js/firebase-init.js";
 import { getAreaSlugsForHeroCategory } from "../js/category-map.js";
 
 const SESSION_SEARCH_KEY = "servix:last-search";
@@ -166,7 +166,7 @@ if (quickForm) {
     const cepRaw      = cepInput?.value || "";
     const areaSlugs   = getAreaSlugsForHeroCategory(category);
 
-    if (!supabase) {
+    if (!db) {
       showMessage("quick-form", "Configure firebase-config.js com as credenciais do Firebase.", true);
       return;
     }
@@ -193,7 +193,7 @@ if (quickForm) {
     const clientLat = geo?.lat   ?? null;
     const clientLng = geo?.lng   ?? null;
 
-    const { error } = await supabase.from("service_requests").insert({
+    const { error } = await db.from("service_requests").insert({
       category,
       city,
       client_lat:   clientLat,

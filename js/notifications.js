@@ -1,9 +1,9 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
 
 const MANY_REQUESTS_THRESHOLD = 5;
 
 export async function getProviderPrefs(providerId) {
-  const { data } = await supabase
+  const { data } = await db
     .from("providers")
     .select("notify_many_requests, notify_profile_changes")
     .eq("id", providerId)
@@ -15,7 +15,7 @@ export async function getProviderPrefs(providerId) {
 }
 
 export async function updateProviderPrefs(providerId, prefs) {
-  return supabase
+  return db
     .from("providers")
     .update({
       notify_many_requests: prefs.notifyManyRequests,
@@ -26,14 +26,14 @@ export async function updateProviderPrefs(providerId, prefs) {
 
 export async function createNotification(providerId, type, title, message) {
   try {
-    const { error } = await supabase.rpc("create_provider_notification", {
+    const { error } = await db.rpc("create_provider_notification", {
       p_provider_id: providerId,
       p_type: type,
       p_title: title,
       p_message: message,
     });
     if (error) {
-      const ins = await supabase.from("provider_notifications").insert({
+      const ins = await db.from("provider_notifications").insert({
         provider_id: providerId,
         type,
         title,
@@ -51,7 +51,7 @@ export async function notifyManyRequestsIfNeeded(providerId, matchingCount) {
   const prefs = await getProviderPrefs(providerId);
   if (!prefs.notifyManyRequests || matchingCount < MANY_REQUESTS_THRESHOLD) return;
 
-  const { count } = await supabase
+  const { count } = await db
     .from("provider_notifications")
     .select("id", { count: "exact", head: true })
     .eq("provider_id", providerId)
@@ -81,7 +81,7 @@ export async function notifyProfileUpdated(providerId) {
 }
 
 export async function fetchNotifications(providerId, limit = 30) {
-  return supabase
+  return db
     .from("provider_notifications")
     .select("id, type, title, message, read_at, created_at")
     .eq("provider_id", providerId)
@@ -90,14 +90,14 @@ export async function fetchNotifications(providerId, limit = 30) {
 }
 
 export async function markNotificationRead(id) {
-  return supabase
+  return db
     .from("provider_notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("id", id);
 }
 
 export async function markAllNotificationsRead(providerId) {
-  return supabase
+  return db
     .from("provider_notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("provider_id", providerId)

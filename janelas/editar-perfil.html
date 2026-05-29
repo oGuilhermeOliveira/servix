@@ -152,8 +152,8 @@
               </div>
               <div class="edit-avatar-info">
                 <label for="edit-photo" style="font-weight:700;color:var(--text);font-size:0.9rem">Foto de perfil</label>
-                <label for="edit-photo">Clique para trocar a foto</label>
-                <input id="edit-photo" type="file" accept="image/*">
+                <span style="font-size:0.85rem;color:var(--text-muted)">JPG, PNG ou WebP — até 5 MB</span>
+                <input id="edit-photo" type="file" accept="image/jpeg,image/png,image/webp,image/*">
               </div>
             </div>
 
@@ -170,22 +170,16 @@
             <p class="section-label">Endereço</p>
 
             <label for="edit-cep">CEP *</label>
-            <input id="edit-cep" type="text" required inputmode="numeric" placeholder="00000-000" maxlength="9">
+            <input id="edit-cep" type="text" required inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" maxlength="9">
+            <p id="edit-cep-address" class="form-hint" hidden style="color:var(--text-soft);margin-top:0.3rem"></p>
 
-            <label for="edit-street">Rua *</label>
-            <input id="edit-street" type="text" required>
+            <input id="edit-street" type="text" hidden autocomplete="address-line1">
+            <input id="edit-neighborhood" type="text" hidden>
+            <input id="edit-city" type="text" hidden autocomplete="address-level2">
+            <input id="edit-state" type="text" hidden maxlength="2" autocomplete="address-level1">
 
             <label for="edit-number">Número *</label>
-            <input id="edit-number" type="text" required placeholder="Ex.: 123">
-
-            <label for="edit-neighborhood">Bairro *</label>
-            <input id="edit-neighborhood" type="text" required>
-
-            <label for="edit-city">Cidade *</label>
-            <input id="edit-city" type="text" required>
-
-            <label for="edit-state">Estado (UF) *</label>
-            <input id="edit-state" type="text" required maxlength="2">
+            <input id="edit-number" type="text" required autocomplete="address-line2" placeholder="Ex.: 123">
 
             <hr class="section-divider">
             <p class="section-label">Áreas de atuação</p>

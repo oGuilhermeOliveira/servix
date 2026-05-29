@@ -1,8 +1,8 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 import { notifyManyRequestsIfNeeded, notifyProfileUpdated } from "./notifications.js";
-import { loadProviderAreas } from "./provider-areas.js";
+import { ensureProviderRow, loadProviderAreas } from "./provider-areas.js";
 
 injectFooter();
 setupThemeSwitcher();
@@ -71,6 +71,43 @@ function formatDate(iso) {
   });
 }
 
+function getServiceLabel(req) {
+  return state.areas.find((a) => a.slug === req.area_slug)?.name || req.category || "serviço";
+}
+
+function normalizeWhatsAppPhone(raw) {
+  let digits = (raw || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("55") && digits.length >= 12) return digits;
+  if (digits.length === 10 || digits.length === 11) return "55" + digits;
+  if (digits.startsWith("0")) return "55" + digits.replace(/^0+/, "");
+  return digits;
+}
+
+function buildRatingWhatsAppMessage(req) {
+  const clientName = (req.client_name || "cliente").trim();
+  const providerName = (state.provider?.full_name || "seu prestador").trim();
+  const service = getServiceLabel(req);
+  return (
+    `Olá, ${clientName}! Aqui é ${providerName}, da Servix Solutions.\n\n` +
+    `O serviço de *${service}* foi concluído. Como você avalia o atendimento?\n\n` +
+    `*Responda com um número de 0 a 5:*\n\n` +
+    `0 - Péssimo\n1 - Ruim\n2 - Regular\n3 - Bom\n4 - Muito bom\n5 - Excelente\n\n` +
+    `Obrigado pela preferência!`
+  );
+}
+
+function openRatingWhatsApp(req) {
+  const phone = normalizeWhatsAppPhone(req.client_phone);
+  if (!phone || phone.length < 12) {
+    alert("Serviço concluído, mas o telefone do cliente é inválido para abrir o WhatsApp.");
+    return;
+  }
+  const url =
+    "https://wa.me/" + phone + "?text=" + encodeURIComponent(buildRatingWhatsAppMessage(req));
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function requestMatchesProvider(request, providerSlugs) {
   const slugSet = new Set(providerSlugs);
   if (request.area_slug) return slugSet.has(request.area_slug);
@@ -126,7 +163,8 @@ function populateAreaFilter(areas) {
 }
 
 async function dismissRequest(requestId) {
-  const { error } = await supabase.from("provider_dismissed_requests").insert({
+  const { error } = await db.from("provider_dismissed_requests").insert({
+    id: `${state.provider.id}__${requestId}`,
     provider_id: state.provider.id,
     request_id: requestId,
   });
@@ -140,7 +178,18 @@ async function dismissRequest(requestId) {
 }
 
 async function completeRequest(req) {
+  if (!req.client_phone?.replace(/\D/g, "")) {
+    alert("Este pedido não tem telefone do cliente. Não é possível enviar a avaliação pelo WhatsApp.");
+    return;
+  }
+
+  const ok = confirm(
+    "Marcar como concluído e abrir o WhatsApp com mensagem pedindo avaliação (0 a 5)?"
+  );
+  if (!ok) return;
+
   const row = {
+    id: `${state.provider.id}__${req.id}`,
     provider_id: state.provider.id,
     request_id: req.id,
     category: req.category || "Serviço",
@@ -149,13 +198,14 @@ async function completeRequest(req) {
     client_name: req.client_name,
     client_phone: req.client_phone,
   };
-  const { error } = await supabase.from("completed_services").insert(row);
+  const { error } = await db.from("completed_services").insert(row);
   if (error) {
     alert("Erro ao registrar serviço concluído: " + error.message);
     return;
   }
   if (!state.dismissedIds.has(req.id)) {
-    await supabase.from("provider_dismissed_requests").insert({
+    await db.from("provider_dismissed_requests").insert({
+      id: `${state.provider.id}__${req.id}`,
       provider_id: state.provider.id,
       request_id: req.id,
     });
@@ -164,6 +214,8 @@ async function completeRequest(req) {
   renderRequests();
   await loadCompletedServices();
   updateChart();
+
+  openRatingWhatsApp(req);
 }
 
 function renderRequests() {
@@ -230,26 +282,35 @@ function renderRequests() {
   });
 }
 
+function sortByCompletedAt(rows) {
+  return [...(rows || [])].sort(function (a, b) {
+    const ta = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+    const tb = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+    return tb - ta;
+  });
+}
+
 async function loadCompletedServices() {
   if (!elCompletedBody) return;
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("completed_services")
     .select("id, category, area_slug, city, client_name, completed_at")
-    .eq("provider_id", state.provider.id)
-    .order("completed_at", { ascending: false })
-    .limit(50);
+    .eq("provider_id", state.provider.id);
 
   if (error) {
-    elCompletedBody.innerHTML = `<tr><td colspan="4">Não foi possível carregar serviços concluídos (Firestore).</td></tr>`;
+    elCompletedBody.innerHTML = `<tr><td colspan="4">Não foi possível carregar serviços concluídos: ${error.message}</td></tr>`;
     return;
   }
 
-  if (!data?.length) {
+  const sorted = sortByCompletedAt(data).slice(0, 50);
+  state._completedRaw = sorted;
+
+  if (!sorted.length) {
     elCompletedBody.innerHTML = `<tr><td colspan="4">Nenhum serviço concluído registrado.</td></tr>`;
     return;
   }
 
-  elCompletedBody.innerHTML = data.map((row) => {
+  elCompletedBody.innerHTML = sorted.map((row) => {
     const areaName = state.areas.find((a) => a.slug === row.area_slug)?.name || row.category;
     return `<tr>
       <td>${areaName}</td>
@@ -343,8 +404,8 @@ elFilterArea?.addEventListener("change", () => {
 });
 
 elLogout?.addEventListener("click", async () => {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  if (!db) return;
+  await db.auth.signOut();
   window.location.href = "prestador.html";
 });
 
@@ -368,31 +429,47 @@ if (new URLSearchParams(window.location.search).get("perfil") === "atualizado") 
 }
 
 async function init() {
-  if (!supabase) {
+  if (!db) {
     showState("not-logged");
     return;
   }
   showState("loading");
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) {
     showState("not-logged");
     return;
   }
 
-  const { data: provider, error: provError } = await supabase
+  try {
+    await ensureProviderRow(db, user, user.email || "");
+  } catch (error) {
+    console.error("ensureProviderRow", error);
+  }
+
+  const { data: provider, error: provError } = await db
     .from("providers")
     .select("id, full_name, email, phone, city, state, avatar_url, lat, lng, provider_service_areas(service_areas(id, slug, name))")
     .eq("auth_user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (provError || !provider) {
     showState("not-logged");
+    const notLoggedEl = document.getElementById("not-logged");
+    if (notLoggedEl) {
+      notLoggedEl.querySelector("p").textContent =
+        "Não foi possível carregar seu perfil de prestador. Conclua o cadastro ou tente novamente.";
+      const link = notLoggedEl.querySelector("a");
+      if (link) {
+        link.textContent = "Completar cadastro";
+        link.href = "prestador.html";
+      }
+    }
     return;
   }
 
   state.provider = provider;
-  state.areas = await loadProviderAreas(supabase, provider.id);
+  state.areas = await loadProviderAreas(db, provider.id);
   if (!state.areas.length) {
     const nested = (provider.provider_service_areas || []).map((l) => l.service_areas).filter(Boolean);
     state.areas = nested;
@@ -403,14 +480,17 @@ async function init() {
   populateAreaFilter(state.areas);
 
   const [reqRes, dismissedRes, completedRes] = await Promise.all([
-    supabase.from("service_requests").select("id, category, area_slug, city, client_lat, client_lng, client_name, client_phone, created_at").order("created_at", { ascending: false }).limit(200),
-    supabase.from("provider_dismissed_requests").select("request_id").eq("provider_id", provider.id),
-    supabase.from("completed_services").select("completed_at").eq("provider_id", provider.id),
+    db.from("service_requests").select("id, category, area_slug, city, client_lat, client_lng, client_name, client_phone, created_at").order("created_at", { ascending: false }).limit(200),
+    db.from("provider_dismissed_requests").select("request_id").eq("provider_id", provider.id),
+    db
+      .from("completed_services")
+      .select("id, category, area_slug, city, client_name, completed_at")
+      .eq("provider_id", provider.id),
   ]);
 
   state.allRequests = reqRes.data || [];
   state.dismissedIds = new Set((dismissedRes.data || []).map((d) => d.request_id));
-  state._completedRaw = completedRes.data || [];
+  state._completedRaw = sortByCompletedAt(completedRes.data || []);
 
   const matching = getMatchingRequests();
   await notifyManyRequestsIfNeeded(provider.id, matching.length);
@@ -423,6 +503,10 @@ async function init() {
   await loadCompletedServices();
   updateChart();
   showState("main");
+
+  if (completedRes.error) {
+    console.warn("completed_services:", completedRes.error);
+  }
 }
 
 init();

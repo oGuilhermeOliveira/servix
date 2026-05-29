@@ -44,8 +44,8 @@ export function areaNameBySlug(slug) {
 }
 
 /** Garante documentos em service_areas para os slugs selecionados. */
-export async function ensureServiceAreaDocs(supabase, areaIds) {
-  if (!supabase || !areaIds?.length) return;
+export async function ensureServiceAreaDocs(db, areaIds) {
+  if (!db || !areaIds?.length) return;
   const catalog = getDefaultServiceAreas();
   const bySlug = new Map(catalog.map(function (a) {
     return [a.slug, a];
@@ -53,11 +53,10 @@ export async function ensureServiceAreaDocs(supabase, areaIds) {
 
   for (const areaId of areaIds) {
     const row = bySlug.get(areaId) || { id: areaId, slug: areaId, name: areaId };
-    await supabase.from("service_areas").insert({
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-    });
+    await db.from("service_areas").upsert(
+      { id: row.slug, slug: row.slug, name: row.name },
+      { onConflict: "id" }
+    );
   }
 }
 
@@ -65,13 +64,13 @@ export async function ensureServiceAreaDocs(supabase, areaIds) {
  * Salva vínculos prestador ↔ áreas (substitui os anteriores).
  * Usa id estável no Firestore: {providerId}__{areaSlug}
  */
-export async function saveProviderServiceAreas(supabase, providerId, areaIds) {
-  if (!supabase || !providerId) return { error: { message: "Prestador invalido." } };
+export async function saveProviderServiceAreas(db, providerId, areaIds) {
+  if (!db || !providerId) return { error: { message: "Prestador invalido." } };
   if (!areaIds?.length) return { error: { message: "Nenhuma area selecionada." } };
 
-  await ensureServiceAreaDocs(supabase, areaIds);
+  await ensureServiceAreaDocs(db, areaIds);
 
-  const del = await supabase.from("provider_service_areas").delete().eq("provider_id", providerId);
+  const del = await db.from("provider_service_areas").delete().eq("provider_id", providerId);
   if (del.error) return del;
 
   for (const areaId of areaIds) {
@@ -81,7 +80,7 @@ export async function saveProviderServiceAreas(supabase, providerId, areaIds) {
       area_id: areaId,
       service_area_id: areaId,
     };
-    const ins = await supabase.from("provider_service_areas").insert(link);
+    const ins = await db.from("provider_service_areas").insert(link);
     if (ins.error) return ins;
   }
 
@@ -89,10 +88,10 @@ export async function saveProviderServiceAreas(supabase, providerId, areaIds) {
 }
 
 /** Carrega áreas do prestador para exibição (tags, filtros). */
-export async function loadProviderAreas(supabase, providerId) {
-  if (!supabase || !providerId) return [];
+export async function loadProviderAreas(db, providerId) {
+  if (!db || !providerId) return [];
 
-  const { data: links, error } = await supabase
+  const { data: links, error } = await db
     .from("provider_service_areas")
     .select("area_id, service_area_id")
     .eq("provider_id", providerId);
@@ -117,4 +116,48 @@ export async function loadProviderAreas(supabase, providerId) {
   return areas.sort(function (a, b) {
     return String(a.name || "").localeCompare(String(b.name || ""), "pt-BR");
   });
+}
+
+/** Garante documento do prestador vinculado ao usuário autenticado. */
+export async function ensureProviderRow(db, user, email) {
+  const normalizedEmail = (email || user.email || "").toLowerCase().trim();
+  const byAuth = await db.from("providers").select("id").eq("auth_user_id", user.id).maybeSingle();
+  if (byAuth.error) throw byAuth.error;
+  if (byAuth.data?.id) return byAuth.data.id;
+
+  const byEmail = await db.from("providers").select("id,auth_user_id").eq("email", normalizedEmail).maybeSingle();
+  if (byEmail.error) throw byEmail.error;
+  if (byEmail.data?.id) {
+    if (!byEmail.data.auth_user_id) {
+      const upd = await db
+        .from("providers")
+        .update({ auth_user_id: user.id })
+        .eq("id", byEmail.data.id)
+        .select("id")
+        .single();
+      if (upd.error) throw upd.error;
+      return upd.data.id;
+    }
+    return byEmail.data.id;
+  }
+
+  const ins = await db
+    .from("providers")
+    .insert({
+      id: user.id,
+      auth_user_id: user.id,
+      email: normalizedEmail,
+      full_name: "",
+      phone: "",
+      address: "",
+    })
+    .select("id")
+    .single();
+
+  if (!ins.error) return ins.data.id;
+
+  const retry = await db.from("providers").select("id").eq("email", normalizedEmail).maybeSingle();
+  if (retry.error) throw retry.error;
+  if (retry.data?.id) return retry.data.id;
+  throw ins.error;
 }

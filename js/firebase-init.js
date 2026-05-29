@@ -8,7 +8,7 @@ import {
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signOut,
+  signOut as firebaseSignOut,
   updatePassword,
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
@@ -37,9 +37,12 @@ import {
 
 let app = null;
 let auth = null;
-let db = null;
+let firestore = null;
 let storage = null;
-let supabase = null;
+/** Cliente Firestore/Auth/Storage com API usada pelo restante do app. */
+let db = null;
+/** Resolve quando o Firebase Auth terminou de restaurar a sessão persistida. */
+let authReady = Promise.resolve();
 
 function normalizeError(error) {
   return { message: error?.message || "Operacao falhou." };
@@ -81,7 +84,7 @@ function prettifySlug(slug) {
 }
 
 async function ensureServiceAreasSeeded() {
-  const areasCol = collection(db, "service_areas");
+  const areasCol = collection(firestore, "service_areas");
   const existing = await getDocs(areasCol);
   if (!existing.empty) return;
 
@@ -98,7 +101,7 @@ async function ensureServiceAreasSeeded() {
   });
 
   for (const [slug, row] of rowsBySlug.entries()) {
-    await setDoc(doc(db, "service_areas", slug), row);
+    await setDoc(doc(firestore, "service_areas", slug), row);
   }
 }
 
@@ -114,8 +117,8 @@ function tableDefaults(table, data) {
 
 async function enrichProviderRows(rows, selectColumns) {
   if (!selectColumns || !selectColumns.includes("provider_service_areas")) return rows;
-  const linksSnap = await getDocs(collection(db, "provider_service_areas"));
-  const areasSnap = await getDocs(collection(db, "service_areas"));
+  const linksSnap = await getDocs(collection(firestore, "provider_service_areas"));
+  const areasSnap = await getDocs(collection(firestore, "service_areas"));
   const links = linksSnap.docs.map(mapDoc);
   const areasById = new Map();
   areasSnap.docs.forEach(function (d) {
@@ -146,6 +149,7 @@ async function enrichProviderRows(rows, selectColumns) {
 function buildConstraints(filters, order, limitCount) {
   const constraints = [];
   filters.forEach(function (f) {
+    if (f.op === "eq" && f.field === "id") return;
     if (f.op === "eq") constraints.push(where(f.field, "==", f.value));
     if (f.op === "gte") constraints.push(where(f.field, ">=", f.value));
     if (f.op === "is" && f.value === null) constraints.push(where(f.field, "==", null));
@@ -155,7 +159,30 @@ function buildConstraints(filters, order, limitCount) {
   return constraints;
 }
 
-class SupaQuery {
+/** Filtro único por id do documento Firestore (não é campo no payload). */
+function getDocumentIdFilter(filters) {
+  if (filters.length !== 1) return null;
+  const f = filters[0];
+  if (f.op === "eq" && f.field === "id") return String(f.value);
+  return null;
+}
+
+function applyClientSort(rows, order, limitCount) {
+  if (!order || !rows?.length) return rows;
+  const sorted = [...rows].sort(function (a, b) {
+    const av = a[order.field];
+    const bv = b[order.field];
+    if (av === bv) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    const cmp = av < bv ? -1 : 1;
+    return order.ascending ? cmp : -cmp;
+  });
+  if (typeof limitCount === "number") return sorted.slice(0, limitCount);
+  return sorted;
+}
+
+class DbQuery {
   constructor(table) {
     this.table = table;
     this._filters = [];
@@ -243,16 +270,43 @@ class SupaQuery {
   }
 
   async _readRows() {
-    const colRef = collection(db, this.table);
-    const q = query(colRef, ...buildConstraints(this._filters, this._order, this._limit));
+    const docId = getDocumentIdFilter(this._filters);
+    if (docId) {
+      const snap = await getDoc(doc(firestore, this.table, docId));
+      let rows = snap.exists() ? [normalizeTimestamps(mapDoc(snap))] : [];
+      if (this.table === "providers") rows = await enrichProviderRows(rows, this._select || "");
+      rows = applyClientSort(rows, this._order, this._limit);
+      return { data: rows, error: null, count: null };
+    }
+
+    const colRef = collection(firestore, this.table);
+    const constraints = buildConstraints(this._filters, this._order, this._limit);
+    const q = constraints.length ? query(colRef, ...constraints) : query(colRef);
+
     if (this._head && this._count === "exact") {
       const countRes = await getCountFromServer(q);
       return { data: null, count: countRes.data().count, error: null };
     }
-    const snap = await getDocs(q);
-    let rows = snap.docs.map(mapDoc).map(normalizeTimestamps);
-    if (this.table === "providers") rows = await enrichProviderRows(rows, this._select || "");
-    return { data: rows, error: null, count: null };
+
+    try {
+      const snap = await getDocs(q);
+      let rows = snap.docs.map(mapDoc).map(normalizeTimestamps);
+      if (this.table === "providers") rows = await enrichProviderRows(rows, this._select || "");
+      return { data: rows, error: null, count: null };
+    } catch (error) {
+      const needsIndex =
+        this._order &&
+        (String(error?.message || "").includes("index") ||
+          error?.code === "failed-precondition");
+      if (!needsIndex) throw error;
+
+      const fallbackQ = query(colRef, ...buildConstraints(this._filters, null, null));
+      const snap = await getDocs(fallbackQ);
+      let rows = snap.docs.map(mapDoc).map(normalizeTimestamps);
+      if (this.table === "providers") rows = await enrichProviderRows(rows, this._select || "");
+      rows = applyClientSort(rows, this._order, this._limit);
+      return { data: rows, error: null, count: null };
+    }
   }
 
   async _writeInsert() {
@@ -266,12 +320,12 @@ class SupaQuery {
         (this.table === "providers" && data.auth_user_id) ||
         null;
       if (fixedId) {
-        docRef = doc(db, this.table, fixedId);
+        docRef = doc(firestore, this.table, fixedId);
         const copy = { ...data };
         delete copy.id;
         await setDoc(docRef, copy, { merge: true });
       } else {
-        docRef = await addDoc(collection(db, this.table), data);
+        docRef = await addDoc(collection(firestore, this.table), data);
       }
       const snap = await getDoc(docRef);
       inserted.push(normalizeTimestamps(mapDoc(snap)));
@@ -280,21 +334,47 @@ class SupaQuery {
   }
 
   async _writeUpdate() {
+    const docId = getDocumentIdFilter(this._filters);
+    if (docId) {
+      const refDoc = doc(firestore, this.table, docId);
+      const snap = await getDoc(refDoc);
+      if (!snap.exists()) {
+        return { data: [], error: { message: "Registro nao encontrado." } };
+      }
+      await updateDoc(refDoc, this._payload || {});
+      const updatedSnap = await getDoc(refDoc);
+      const row = normalizeTimestamps(mapDoc(updatedSnap));
+      return { data: [row], error: null };
+    }
+
     const rows = await this._readRows();
     if (rows.error) return rows;
     const updates = rows.data || [];
+    if (!updates.length) {
+      return { data: [], error: { message: "Registro nao encontrado." } };
+    }
     for (const row of updates) {
-      const refDoc = doc(db, this.table, row.id);
+      const refDoc = doc(firestore, this.table, row.id);
       await updateDoc(refDoc, this._payload || {});
     }
     return { data: updates, error: null };
   }
 
   async _writeDelete() {
+    const docId = getDocumentIdFilter(this._filters);
+    if (docId) {
+      const refDoc = doc(firestore, this.table, docId);
+      const snap = await getDoc(refDoc);
+      if (!snap.exists()) return { data: [], error: null };
+      const row = normalizeTimestamps(mapDoc(snap));
+      await deleteDoc(refDoc);
+      return { data: [row], error: null };
+    }
+
     const rows = await this._readRows();
     if (rows.error) return rows;
     for (const row of rows.data || []) {
-      await deleteDoc(doc(db, this.table, row.id));
+      await deleteDoc(doc(firestore, this.table, row.id));
     }
     return { data: rows.data || [], error: null };
   }
@@ -306,18 +386,22 @@ class SupaQuery {
       this._payload = payload;
       return this._writeInsert();
     }
-    const existing = await new SupaQuery(this.table).select("*").eq(conflictKey, payload[conflictKey]).maybeSingle();
+    const existing = await new DbQuery(this.table).select("*").eq(conflictKey, payload[conflictKey]).maybeSingle();
     if (existing.error) return existing;
     if (existing.data?.id) {
       const targetId = existing.data.id;
       const copy = { ...payload };
       delete copy.id;
-      await setDoc(doc(db, this.table, targetId), copy, { merge: true });
-      const updatedSnap = await getDoc(doc(db, this.table, targetId));
+      await setDoc(doc(firestore, this.table, targetId), copy, { merge: true });
+      const updatedSnap = await getDoc(doc(firestore, this.table, targetId));
       return { data: normalizeTimestamps(mapDoc(updatedSnap)), error: null };
     }
     if (conflictKey === "auth_user_id" && payload.auth_user_id) {
       this._payload = { ...payload, id: payload.auth_user_id };
+      return this._writeInsert();
+    }
+    if (conflictKey === "id" && payload.id) {
+      this._payload = payload;
       return this._writeInsert();
     }
     this._payload = payload;
@@ -373,7 +457,8 @@ function createStorageApi() {
           try {
             const storageRef = ref(storage, `${bucket}/${path}`);
             await uploadBytes(storageRef, file);
-            return { data: { path }, error: null };
+            const publicUrl = await getDownloadURL(storageRef);
+            return { data: { path, publicUrl }, error: null };
           } catch (error) {
             return { data: null, error: normalizeError(error) };
           }
@@ -393,7 +478,7 @@ function createStorageApi() {
 }
 
 async function deleteProviderCascadeByUserId(userId) {
-  const provRes = await new SupaQuery("providers").select("*").eq("auth_user_id", userId).maybeSingle();
+  const provRes = await new DbQuery("providers").select("*").eq("auth_user_id", userId).maybeSingle();
   const provider = provRes.data;
   if (!provider?.id) return;
   const providerId = provider.id;
@@ -406,12 +491,12 @@ async function deleteProviderCascadeByUserId(userId) {
   ];
 
   for (const table of relatedTables) {
-    const rows = await new SupaQuery(table).select("*").eq("provider_id", providerId);
+    const rows = await new DbQuery(table).select("*").eq("provider_id", providerId);
     for (const row of rows.data || []) {
-      await deleteDoc(doc(db, table, row.id));
+      await deleteDoc(doc(firestore, table, row.id));
     }
   }
-  await deleteDoc(doc(db, "providers", providerId));
+  await deleteDoc(doc(firestore, "providers", providerId));
 }
 
 function createRpcApi() {
@@ -426,7 +511,7 @@ function createRpcApi() {
           created_at: new Date().toISOString(),
           read_at: null,
         };
-        const inserted = await new SupaQuery("provider_notifications").insert(payload);
+        const inserted = await new DbQuery("provider_notifications").insert(payload);
         return inserted;
       }
 
@@ -477,21 +562,31 @@ function createAuthApi() {
     },
     async signOut() {
       try {
-        await signOut(auth);
+        await firebaseSignOut(auth);
         return { error: null };
       } catch (error) {
         return { error: normalizeError(error) };
       }
     },
     async getUser() {
+      await authReady;
       return { data: { user: mapUser(auth.currentUser) }, error: null };
     },
     async getSession() {
+      await authReady;
       const user = mapUser(auth.currentUser);
       return { data: { session: user ? { user } : null }, error: null };
     },
     onAuthStateChange(callback) {
       const unsub = onAuthStateChanged(auth, function (user) {
+        const params = new URLSearchParams(window.location.search);
+        const recovery =
+          Boolean(params.get("oobCode")) &&
+          (params.get("mode") === "resetPassword" || !params.get("mode"));
+        if (user && recovery) {
+          callback("PASSWORD_RECOVERY", { user: mapUser(user) });
+          return;
+        }
         callback(user ? "SIGNED_IN" : "SIGNED_OUT", user ? { user: mapUser(user) } : null);
       });
       return { data: { subscription: { unsubscribe: unsub } } };
@@ -546,21 +641,30 @@ try {
     app = initializeApp(firebaseConfig);
     const authMod = await import("https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js");
     auth = authMod.getAuth(app);
-    db = getFirestore(app);
+    authReady = new Promise(function (resolve) {
+      const unsub = onAuthStateChanged(auth, function () {
+        unsub();
+        resolve();
+      });
+    });
+    firestore = getFirestore(app);
     storage = getStorage(app);
-    await ensureServiceAreasSeeded();
 
-    supabase = {
+    db = {
       auth: createAuthApi(),
       from(table) {
-        return new SupaQuery(table);
+        return new DbQuery(table);
       },
       storage: createStorageApi(),
       rpc: createRpcApi(),
     };
+
+    ensureServiceAreasSeeded().catch(function (err) {
+      console.warn("Nao foi possivel popular service_areas:", err);
+    });
   }
-} catch {
-  // firebase-config.js ausente
+} catch (err) {
+  console.error("Firebase nao inicializado:", err);
 }
 
-export { supabase };
+export { db };

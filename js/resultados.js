@@ -1,4 +1,4 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
 
 const SESSION_SEARCH_KEY = "servix:last-search";
 
@@ -31,7 +31,7 @@ function writeSearchSession(data) {
 }
 
 async function submitRequest(search) {
-  if (!supabase || search.requestSubmitted) return null;
+  if (!db || search.requestSubmitted) return null;
 
   const payload = {
     category: search.category || "Servico",
@@ -43,11 +43,11 @@ async function submitRequest(search) {
     area_slug: search.areaSlug || search.areaSlugs?.[0] || null,
   };
 
-  let { error } = await supabase.from("service_requests").insert(payload);
+  let { error } = await db.from("service_requests").insert(payload);
   if (error && payload.area_slug) {
     const fallback = { ...payload };
     delete fallback.area_slug;
-    ({ error } = await supabase.from("service_requests").insert(fallback));
+    ({ error } = await db.from("service_requests").insert(fallback));
   }
   if (!error) {
     writeSearchSession({ ...search, pendingRequest: false, requestSubmitted: true });
@@ -131,12 +131,12 @@ async function run() {
     subtitleEl.textContent = locText + groupLabel.trim() + (groupLabel ? ". " : "") + geoHint;
   }
 
-  if (!supabase) {
+  if (!db) {
     if (listEl) listEl.innerHTML = '<p class="results-error">Configure <code>firebase-config.js</code> e recarregue.</p>';
     return;
   }
 
-  const { data: rows, error } = await supabase
+  const { data: rows, error } = await db
     .from("providers")
     .select("id, full_name, phone, city, state, lat, lng, avatar_url, provider_service_areas(service_areas(slug,name))");
 

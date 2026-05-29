@@ -1,7 +1,12 @@
-import { supabase } from "./supabase-init.js";
+import { db } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
-import { mergeWithDefaultServiceAreas, saveProviderServiceAreas } from "./provider-areas.js";
+import { uploadProviderAvatar, validateAvatarFile } from "./avatar-upload.js";
+import {
+  ensureProviderRow,
+  mergeWithDefaultServiceAreas,
+  saveProviderServiceAreas,
+} from "./provider-areas.js";
 
 const registerForm = document.getElementById("register-form");
 const loginForm = document.getElementById("login-form");
@@ -10,6 +15,7 @@ const resetForm = document.getElementById("reset-form");
 const registerTab = document.getElementById("tab-register");
 const loginTab = document.getElementById("tab-login");
 const registerAreasHost = document.getElementById("register-areas-host");
+const authGuest = document.getElementById("auth-guest");
 const loggedBox = document.getElementById("logged-box");
 const loggedText = document.getElementById("logged-text");
 const logoutBtn = document.getElementById("logout-btn");
@@ -93,22 +99,19 @@ function composeAddress() {
   const city = (cityInput?.value || "").trim();
   const state = (stateInput?.value || "").trim().toUpperCase();
   const address = [street, number, neighborhood, city, state, cep].filter(Boolean).join(", ");
-  return { address: address, city: city, state: state };
+  return { address: address, city: city, state: state, cep: normalizeCep(cep) };
 }
 
 async function uploadAvatar(userId, file) {
   if (!file) return null;
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-  const path = userId + "/avatar-" + Date.now() + "." + ext;
-  const upload = await supabase.storage.from("provider-avatars").upload(path, file, { upsert: true });
-  if (upload.error) throw upload.error;
-  const pub = supabase.storage.from("provider-avatars").getPublicUrl(path);
-  return pub.data.publicUrl || null;
+  const check = validateAvatarFile(file);
+  if (!check.ok) throw new Error(check.message);
+  return uploadProviderAvatar(userId, file, null);
 }
 
 async function loadAreas() {
-  if (!registerAreasHost || !supabase) return;
-  const { data, error } = await supabase.from("service_areas").select("id,slug,name").order("name");
+  if (!registerAreasHost || !db) return;
+  const { data, error } = await db.from("service_areas").select("id,slug,name").order("name");
   let rows = Array.isArray(data) ? data : [];
   if (error) rows = [];
   rows = mergeWithDefaultServiceAreas(rows);
@@ -127,7 +130,7 @@ async function loadAreas() {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.name = "service_area";
-    input.value = row.id;
+    input.value = row.slug || row.id;
     label.appendChild(input);
     const txt = document.createElement("span");
     txt.textContent = row.name;
@@ -152,15 +155,16 @@ async function saveProviderProfile(userId, email, payload) {
     address: payload.address.trim(),
     city: payload.city,
     state: payload.state,
+    cep: payload.cep || null,
     avatar_url: payload.avatarUrl,
     lat: payload.lat,
     lng: payload.lng,
     terms_accepted_at: new Date().toISOString(),
   };
-  const upsert = await supabase.from("providers").upsert(upsertData, { onConflict: "auth_user_id" }).select("id").single();
+  const upsert = await db.from("providers").upsert(upsertData, { onConflict: "auth_user_id" }).select("id").single();
   if (upsert.error) throw upsert.error;
   const providerId = upsert.data.id;
-  const areaSave = await saveProviderServiceAreas(supabase, providerId, payload.areaIds);
+  const areaSave = await saveProviderServiceAreas(db, providerId, payload.areaIds);
   if (areaSave.error) throw new Error(areaSave.error.message || "Erro ao salvar areas de atuacao.");
 }
 
@@ -224,6 +228,7 @@ async function finalizeProfileForUser(user, email, payload) {
     address: payload.composed.address,
     city: payload.composed.city,
     state: payload.composed.state,
+    cep: payload.composed.cep,
     avatarUrl,
     areaIds: payload.areaIds,
     lat: null,
@@ -231,54 +236,10 @@ async function finalizeProfileForUser(user, email, payload) {
   });
 }
 
-async function ensureProviderRow(user, email) {
-  const normalizedEmail = (email || user.email || "").toLowerCase().trim();
-  const byAuth = await supabase.from("providers").select("id").eq("auth_user_id", user.id).maybeSingle();
-  if (byAuth.error) throw byAuth.error;
-  if (byAuth.data?.id) return byAuth.data.id;
-
-  const byEmail = await supabase.from("providers").select("id,auth_user_id").eq("email", normalizedEmail).maybeSingle();
-  if (byEmail.error) throw byEmail.error;
-  if (byEmail.data?.id) {
-    if (!byEmail.data.auth_user_id) {
-      const upd = await supabase
-        .from("providers")
-        .update({ auth_user_id: user.id })
-        .eq("id", byEmail.data.id)
-        .select("id")
-        .single();
-      if (upd.error) throw upd.error;
-      return upd.data.id;
-    }
-    return byEmail.data.id;
-  }
-
-  const ins = await supabase
-    .from("providers")
-    .insert({
-      id: user.id,
-      auth_user_id: user.id,
-      email: normalizedEmail,
-      full_name: "",
-      phone: "",
-      address: "",
-    })
-    .select("id")
-    .single();
-
-  if (!ins.error) return ins.data.id;
-
-  // corrida de concorrencia: outra operacao criou no intervalo
-  const retry = await supabase.from("providers").select("id").eq("email", normalizedEmail).maybeSingle();
-  if (retry.error) throw retry.error;
-  if (retry.data?.id) return retry.data.id;
-  throw ins.error;
-}
-
 async function hasAnyAreaLinked(userId) {
-  const provider = await supabase.from("providers").select("id").eq("auth_user_id", userId).maybeSingle();
+  const provider = await db.from("providers").select("id").eq("auth_user_id", userId).maybeSingle();
   if (provider.error || !provider.data) return false;
-  const links = await supabase
+  const links = await db
     .from("provider_service_areas")
     .select("provider_id", { count: "exact", head: true })
     .eq("provider_id", provider.data.id);
@@ -287,18 +248,22 @@ async function hasAnyAreaLinked(userId) {
 }
 
 async function refreshAuthState() {
-  if (!supabase) return;
-  const result = await supabase.auth.getUser();
+  if (!db) return;
+  const result = await db.auth.getUser();
   const user = result.data.user;
   if (user) {
     try {
-      await ensureProviderRow(user, user.email || "");
+      await ensureProviderRow(db, user, user.email || "");
     } catch (error) {
       console.error("ensureProviderRow", error);
     }
+    if (authGuest) authGuest.hidden = true;
     loggedBox.hidden = false;
     loggedText.textContent = "Logado como: " + user.email;
+    loginForm?.querySelector(".form-message")?.remove();
+    registerForm?.querySelector(".form-message")?.remove();
   } else {
+    if (authGuest) authGuest.hidden = false;
     loggedBox.hidden = true;
     loggedText.textContent = "";
   }
@@ -345,7 +310,7 @@ if (cepInput) {
 
 registerForm.addEventListener("submit", async function (event) {
   event.preventDefault();
-  if (!supabase) {
+  if (!db) {
     showMessage("register-form", "Configure o firebase-config.js primeiro.", true);
     return;
   }
@@ -367,7 +332,7 @@ registerForm.addEventListener("submit", async function (event) {
     return;
   }
 
-  const sign = await supabase.auth.signUp({ email: formData.email.trim(), password: formData.password });
+  const sign = await db.auth.signUp({ email: formData.email.trim(), password: formData.password });
   if (sign.error) {
     showMessage("register-form", sign.error.message, true);
     return;
@@ -391,7 +356,7 @@ registerForm.addEventListener("submit", async function (event) {
   }
 
   try {
-    await ensureProviderRow(sessionUser, formData.email);
+    await ensureProviderRow(db, sessionUser, formData.email);
     await finalizeProfileForUser(sessionUser, formData.email, formData);
     showMessage("register-form", "Cadastro concluido com sucesso. Voce ja esta logado.", false);
     registerForm.reset();
@@ -404,20 +369,20 @@ registerForm.addEventListener("submit", async function (event) {
 
 loginForm.addEventListener("submit", async function (event) {
   event.preventDefault();
-  if (!supabase) {
+  if (!db) {
     showMessage("login-form", "Configure o firebase-config.js primeiro.", true);
     return;
   }
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
-  const signIn = await supabase.auth.signInWithPassword({ email: email, password: password });
+  const signIn = await db.auth.signInWithPassword({ email: email, password: password });
   if (signIn.error) {
     showMessage("login-form", signIn.error.message, true);
     return;
   }
 
   try {
-    await ensureProviderRow(signIn.data.user, email);
+    await ensureProviderRow(db, signIn.data.user, email);
   } catch (error) {
     showMessage(
       "login-form",
@@ -465,8 +430,8 @@ loginForm.addEventListener("submit", async function (event) {
 });
 
 logoutBtn.addEventListener("click", async function () {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  if (!db) return;
+  await db.auth.signOut();
   await refreshAuthState();
 });
 
@@ -491,7 +456,7 @@ if (btnBackLogin) {
 if (forgotForm) {
   forgotForm.addEventListener("submit", async function (event) {
     event.preventDefault();
-    if (!supabase) return;
+    if (!db) return;
 
     const email     = document.getElementById("forgot-email")?.value?.trim() || "";
     const submitBtn = forgotForm.querySelector('button[type="submit"]');
@@ -501,7 +466,7 @@ if (forgotForm) {
 
     const redirectTo = new URL("redefinir-senha.html", window.location.href).href;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo });
 
     submitBtn.disabled    = false;
     submitBtn.textContent = "Enviar link de recuperação";
@@ -522,7 +487,7 @@ if (forgotForm) {
 if (resetForm) {
   resetForm.addEventListener("submit", async function (event) {
     event.preventDefault();
-    if (!supabase) return;
+    if (!db) return;
     const pass    = document.getElementById("reset-password")?.value || "";
     const confirm = document.getElementById("reset-password-confirm")?.value || "";
     const btn     = resetForm.querySelector('button[type="submit"]');
@@ -534,7 +499,7 @@ if (resetForm) {
       return;
     }
     btn.disabled = true; btn.textContent = "Salvando...";
-    const { error } = await supabase.auth.updateUser({ password: pass });
+    const { error } = await db.auth.updateUser({ password: pass });
     btn.disabled = false; btn.textContent = "Salvar nova senha";
 
     if (error) {
@@ -547,9 +512,10 @@ if (resetForm) {
 }
 
 // Detecta chegada pelo link de recuperação
-if (supabase) {
-  supabase.auth.onAuthStateChange((event) => {
+if (db) {
+  db.auth.onAuthStateChange((event) => {
     if (event === "PASSWORD_RECOVERY") setTab("reset");
+    refreshAuthState();
   });
 }
 
