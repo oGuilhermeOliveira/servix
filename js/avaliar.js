@@ -1,5 +1,12 @@
+import { showAppAlert } from "./app-dialog.js";
 import { db } from "./firebase-init.js";
 import { areaNameBySlug } from "./provider-areas.js";
+import { notifyProviderReview } from "./notifications.js";
+import { injectFooter } from "./footer.js";
+import { setupThemeSwitcher } from "./theme.js";
+
+injectFooter();
+setupThemeSwitcher();
 const elLoading = document.getElementById("review-loading");
 const elError = document.getElementById("review-error");
 const elErrorText = document.getElementById("review-error-text");
@@ -121,7 +128,7 @@ elForm?.addEventListener("submit", async function (event) {
 
   const rating = Number(elRatingHidden?.value);
   if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
-    alert("Selecione uma nota de 0 a 5.");
+    showAppAlert("Selecione uma nota de 0 a 5.", { variant: "error" });
     return;
   }
 
@@ -157,8 +164,14 @@ elForm?.addEventListener("submit", async function (event) {
   }
 
   if (error) {
-    alert("Erro ao enviar: " + (error.message || "tente novamente."));
+    showAppAlert("Erro ao enviar: " + (error.message || "tente novamente."), { variant: "error" });
     return;
+  }
+
+  try {
+    await notifyProviderReview(completedRow.provider_id, payload);
+  } catch (err) {
+    console.warn("notifyProviderReview:", err);
   }
 
   showPanel(elDone);

@@ -37,8 +37,10 @@ export function injectFooter() {
     <div id="about-modal" class="about-modal" hidden>
       <div class="about-modal-backdrop" data-close-about></div>
       <div class="about-modal-panel" role="dialog" aria-labelledby="about-title">
-        <button type="button" class="about-modal-close" data-close-about aria-label="Fechar">×</button>
-        <h3 id="about-title">Sobre o ${APP.name}</h3>
+        <header class="app-dialog-header">
+          <h3 id="about-title" class="app-dialog-title">Sobre o ${APP.name}</h3>
+          <button type="button" class="app-dialog-close about-modal-close" data-close-about aria-label="Fechar">×</button>
+        </header>
         <dl class="about-dl">
           <dt>Nome</dt><dd>${APP.name}</dd>
           <dt>Versão</dt><dd>${APP.version}</dd>
@@ -57,20 +59,20 @@ export function injectFooter() {
 
   aboutBtn?.addEventListener("click", () => {
     modal.hidden = false;
-    document.body.style.overflow = "hidden";
+    document.body.classList.add("modal-open");
   });
 
   modal?.querySelectorAll("[data-close-about]").forEach((el) => {
     el.addEventListener("click", () => {
       modal.hidden = true;
-      document.body.style.overflow = "";
+      document.body.classList.remove("modal-open");
     });
   });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal && !modal.hidden) {
       modal.hidden = true;
-      document.body.style.overflow = "";
+      document.body.classList.remove("modal-open");
     }
   });
 }

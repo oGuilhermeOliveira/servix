@@ -1,8 +1,15 @@
+import { showAppAlert, showAppConfirm } from "./app-dialog.js";
 import { db } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 import { notifyManyRequestsIfNeeded, notifyProfileUpdated } from "./notifications.js";
 import { ensureProviderRow, loadProviderAreas, loadProviderForUser } from "./provider-areas.js";
+import {
+  averageRating,
+  fetchRatingStatsForProvider,
+  formatRatingValue,
+  renderStarRating,
+} from "./provider-reviews.js";
 import {
   isProviderProfileIncomplete,
   tryCompletePendingProviderRegistration,
@@ -44,6 +51,7 @@ const elPhone = document.getElementById("profile-phone");
 const elLocation = document.getElementById("profile-location");
 const elAvatarContainer = document.getElementById("profile-avatar-container");
 const elAreasTags = document.getElementById("profile-areas-tags");
+const elProfileRating = document.getElementById("profile-rating");
 const elRequestsList = document.getElementById("requests-list");
 const elRequestsCount = document.getElementById("requests-count");
 const elLogout = document.getElementById("dashboard-logout");
@@ -126,11 +134,14 @@ function showEvaluationLinkDialog(clientName, evaluationUrl, clientPhone) {
   box.querySelector("[data-copy-link]")?.addEventListener("click", async function () {
     try {
       await navigator.clipboard.writeText(evaluationUrl);
-      alert("Link copiado! Cole no WhatsApp ou e-mail do cliente.");
+      showAppAlert("Link copiado! Cole no WhatsApp ou e-mail do cliente.", {
+        title: "Link de avaliação",
+        variant: "success",
+      });
     } catch {
       input?.select();
       document.execCommand("copy");
-      alert("Link selecionado — use Ctrl+C para copiar.");
+      showAppAlert("Link selecionado — use Ctrl+C para copiar.", { title: "Copiar link" });
     }
   });
 
@@ -203,6 +214,26 @@ function renderProfileAvatar(provider) {
   elAvatarContainer.appendChild(img);
 }
 
+async function renderProviderRating(providerId) {
+  if (!elProfileRating) return;
+  elProfileRating.replaceChildren();
+  const stats = await fetchRatingStatsForProvider(db, providerId);
+  const avg = averageRating(stats);
+  const count = stats?.count || 0;
+
+  if (avg == null) {
+    elProfileRating.textContent = "Sem avaliações ainda";
+    return;
+  }
+
+  elProfileRating.appendChild(renderStarRating(avg, { showValue: true }));
+  const label = document.createElement("span");
+  label.className = "profile-rating-label";
+  label.textContent =
+    `Média ${formatRatingValue(avg)} · ${count} avaliação${count === 1 ? "" : "ões"}`;
+  elProfileRating.appendChild(label);
+}
+
 function renderProfile(provider, areas) {
   elName.textContent = provider.full_name || "Sem nome";
   elEmail.textContent = provider.email || "—";
@@ -210,6 +241,7 @@ function renderProfile(provider, areas) {
   elLocation.textContent = [provider.city, provider.state].filter(Boolean).join(" / ") || "Não informado";
 
   renderProfileAvatar(provider);
+  renderProviderRating(provider.id);
 
   elAreasTags.innerHTML = "";
   areas.forEach((area) => {
@@ -238,7 +270,10 @@ async function dismissRequest(requestId) {
     request_id: requestId,
   });
   if (error) {
-    alert("Não foi possível ocultar o pedido. Verifique as regras do Firestore (coleção provider_dismissed_requests).");
+    showAppAlert(
+      "Não foi possível ocultar o pedido. Verifique as regras do Firestore (coleção provider_dismissed_requests).",
+      { variant: "error" }
+    );
     return;
   }
   state.dismissedIds.add(requestId);
@@ -247,8 +282,9 @@ async function dismissRequest(requestId) {
 }
 
 async function completeRequest(req) {
-  const ok = confirm(
-    "Marcar este pedido como concluído? Você receberá um link para o cliente avaliar o atendimento."
+  const ok = await showAppConfirm(
+    "Marcar este pedido como concluído? Você receberá um link para o cliente avaliar o atendimento.",
+    { confirmLabel: "Marcar concluído" }
   );
   if (!ok) return;
 
@@ -265,7 +301,7 @@ async function completeRequest(req) {
   };
   const { error } = await db.from("completed_services").insert(row);
   if (error) {
-    alert("Erro ao registrar serviço concluído: " + error.message);
+    showAppAlert("Erro ao registrar serviço concluído: " + error.message, { variant: "error" });
     return;
   }
 
@@ -359,8 +395,11 @@ function renderRequests() {
         <button type="button" class="btn btn-small btn-ghost" data-dismiss="${req.id}">Excluir pedido</button>
       </div>`;
 
-    card.querySelector("[data-dismiss]")?.addEventListener("click", () => {
-      if (confirm("Ocultar este pedido da sua lista?")) dismissRequest(req.id);
+    card.querySelector("[data-dismiss]")?.addEventListener("click", async () => {
+      const ok = await showAppConfirm("Ocultar este pedido da sua lista?", {
+        confirmLabel: "Ocultar",
+      });
+      if (ok) dismissRequest(req.id);
     });
     card.querySelector("[data-complete]")?.addEventListener("click", () => completeRequest(req));
 
@@ -467,7 +506,7 @@ function updateChart() {
 function exportChartCsv() {
   const { labels, requests, completed } = state.chartData;
   if (!labels.length) {
-    alert("Não há dados para exportar.");
+    showAppAlert("Não há dados para exportar.");
     return;
   }
   const lines = ["Mes;Orcamentos_solicitados;Servicos_concluidos"];

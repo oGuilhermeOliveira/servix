@@ -1,3 +1,4 @@
+import { showAppAlert, showAppConfirm } from "./app-dialog.js";
 import { db, buildPasswordResetRedirectUrl } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
@@ -29,12 +30,13 @@ gotoForgot.addEventListener("click", async (e) => {
 
   const { data: { user } } = await db.auth.getUser();
   if (!user?.email) {
-    alert("Sessão inválida. Faça login novamente.");
+    showAppAlert("Sessão inválida. Faça login novamente.", { variant: "error" });
     return;
   }
 
-  const ok = confirm(
-    `Enviar link de recuperação para ${user.email}?\n\nVocê poderá definir uma nova senha sem precisar da senha atual.`
+  const ok = await showAppConfirm(
+    `Enviar link de recuperação para ${user.email}?\n\nVocê poderá definir uma nova senha sem precisar da senha atual.`,
+    { confirmLabel: "Enviar link" }
   );
   if (!ok) return;
 
@@ -49,10 +51,11 @@ gotoForgot.addEventListener("click", async (e) => {
   gotoForgot.textContent = prevText;
 
   if (error) {
-    alert("Erro ao enviar e-mail: " + error.message);
+    showAppAlert("Erro ao enviar e-mail: " + error.message, { variant: "error" });
   } else {
-    alert(
-      `Link de recuperação enviado para ${user.email}.\n\nVerifique sua caixa de entrada e a pasta de spam.`
+    showAppAlert(
+      `Link de recuperação enviado para ${user.email}.\n\nVerifique sua caixa de entrada e a pasta de spam.`,
+      { variant: "success", title: "E-mail enviado" }
     );
   }
 });
@@ -66,13 +69,13 @@ changeForm.addEventListener("submit", async (e) => {
   const confirm = document.getElementById("confirm-password").value;
 
   if (next !== confirm) {
-    alert("As senhas novas não coincidem.");
+    showAppAlert("As senhas novas não coincidem.", { variant: "error" });
     return;
   }
 
   const { data: { user } } = await db.auth.getUser();
   if (!user?.email) {
-    alert("Sessão inválida.");
+    showAppAlert("Sessão inválida.", { variant: "error" });
     return;
   }
 
@@ -82,18 +85,20 @@ changeForm.addEventListener("submit", async (e) => {
   });
 
   if (verify.error) {
-    const sendReset = confirm(
-      "Senha atual incorreta.\n\nDeseja receber um link por e-mail para redefinir sua senha?"
+    const sendReset = await showAppConfirm(
+      "Senha atual incorreta.\n\nDeseja receber um link por e-mail para redefinir sua senha?",
+      { confirmLabel: "Enviar link" }
     );
     if (sendReset) {
       const redirectTo = buildPasswordResetRedirectUrl("redefinir-senha.html");
       const { error: resetError } = await db.auth.resetPasswordForEmail(user.email, {
         redirectTo,
       });
-      if (resetError) alert("Erro ao enviar e-mail: " + resetError.message);
+      if (resetError) showAppAlert("Erro ao enviar e-mail: " + resetError.message, { variant: "error" });
       else {
-        alert(
-          `Link enviado para ${user.email}. Verifique sua caixa de entrada e a pasta de spam.`
+        showAppAlert(
+          `Link enviado para ${user.email}. Verifique sua caixa de entrada e a pasta de spam.`,
+          { variant: "success", title: "E-mail enviado" }
         );
       }
     }
@@ -101,17 +106,18 @@ changeForm.addEventListener("submit", async (e) => {
   }
 
   const { error } = await db.auth.updateUser({ password: next });
-  if (error) alert("Erro: " + error.message);
+  if (error) showAppAlert("Erro: " + error.message, { variant: "error" });
   else {
-    alert("Senha atualizada com sucesso.");
+    showAppAlert("Senha atualizada com sucesso.", { variant: "success" });
     changeForm.reset();
   }
 });
 
 deleteBtn.addEventListener("click", async () => {
   if (!deleteConfirm.checked) return;
-  const ok = confirm(
-    "Tem certeza? Todos os seus dados serão excluídos permanentemente."
+  const ok = await showAppConfirm(
+    "Tem certeza? Todos os seus dados serão excluídos permanentemente.",
+    { title: "Excluir conta", confirmLabel: "Excluir" }
   );
   if (!ok) return;
 
@@ -121,7 +127,7 @@ deleteBtn.addEventListener("click", async () => {
   const { error } = await db.rpc("delete_own_provider_account");
 
   if (error) {
-    alert("Erro ao excluir conta: " + error.message);
+    showAppAlert("Erro ao excluir conta: " + error.message, { variant: "error" });
     deleteBtn.disabled = false;
     deleteBtn.textContent = "Excluir minha conta";
     return;

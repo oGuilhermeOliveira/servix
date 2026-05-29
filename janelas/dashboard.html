@@ -93,6 +93,19 @@
       color: var(--accent);
     }
 
+    .profile-rating-row {
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem 0.5rem;
+    }
+
+    #profile-rating {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
     .profile-areas {
       margin-top: 1rem;
     }
@@ -295,6 +308,10 @@
             </div>
 
             <div class="profile-info">
+              <div class="profile-info-row profile-rating-row" id="profile-rating-row">
+                <span class="info-icon">⭐</span>
+                <span id="profile-rating">Carregando avaliação...</span>
+              </div>
               <div class="profile-info-row">
                 <span class="info-icon">📞</span>
                 <span id="profile-phone">—</span>

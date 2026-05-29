@@ -79,6 +79,22 @@ export async function fetchProviderReviewStats(db) {
   return aggregateReviewsByProvider(rows);
 }
 
+/** Média e contagem de avaliações de um prestador. */
+export async function fetchRatingStatsForProvider(db, providerId) {
+  if (!db || !providerId) return null;
+  const res = await db
+    .from("provider_reviews")
+    .select("rating, comment, client_name, created_at")
+    .eq("provider_id", providerId);
+  if (res.error || !res.data?.length) return null;
+  const map = aggregateReviewsByProvider(
+    res.data.map(function (r) {
+      return { ...r, provider_id: providerId };
+    })
+  );
+  return map.get(providerId) || null;
+}
+
 export async function fetchRecentTestimonials(db, limitCount) {
   const limit = limitCount || 12;
   const rows = await fetchAllProviderReviews(db, 80);
