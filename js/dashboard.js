@@ -26,6 +26,7 @@ let state = {
   providerSlugs: [],
   allRequests: [],
   dismissedIds: new Set(),
+  globallyCompletedIds: new Set(),
   filterSlug: "",
   chartData: { labels: [], requests: [], completed: [] },
 };
@@ -115,9 +116,14 @@ function requestMatchesProvider(request, providerSlugs) {
   return categorySlugs.some((s) => slugSet.has(s));
 }
 
+function isRequestGloballyCompleted(req) {
+  return Boolean(req.completed_at) || state.globallyCompletedIds.has(req.id);
+}
+
 function getMatchingRequests() {
   return state.allRequests.filter((r) => {
     if (state.dismissedIds.has(r.id)) return false;
+    if (isRequestGloballyCompleted(r)) return false;
     if (!requestMatchesProvider(r, state.providerSlugs)) return false;
     if (state.filterSlug) {
       const matchesArea = r.area_slug === state.filterSlug;
@@ -203,6 +209,27 @@ async function completeRequest(req) {
     alert("Erro ao registrar serviço concluído: " + error.message);
     return;
   }
+
+  const completedAt = new Date().toISOString();
+  const { error: closeError } = await db
+    .from("service_requests")
+    .update({
+      completed_at: completedAt,
+      completed_by_provider_id: state.provider.id,
+    })
+    .eq("id", req.id);
+
+  if (closeError) {
+    console.warn("service_requests close:", closeError);
+  } else {
+    const local = state.allRequests.find((r) => r.id === req.id);
+    if (local) {
+      local.completed_at = completedAt;
+      local.completed_by_provider_id = state.provider.id;
+    }
+    state.globallyCompletedIds.add(req.id);
+  }
+
   if (!state.dismissedIds.has(req.id)) {
     await db.from("provider_dismissed_requests").insert({
       id: `${state.provider.id}__${req.id}`,
@@ -479,17 +506,21 @@ async function init() {
   renderProfile(provider, state.areas);
   populateAreaFilter(state.areas);
 
-  const [reqRes, dismissedRes, completedRes] = await Promise.all([
-    db.from("service_requests").select("id, category, area_slug, city, client_lat, client_lng, client_name, client_phone, created_at").order("created_at", { ascending: false }).limit(200),
+  const [reqRes, dismissedRes, completedRes, globalCompletedRes] = await Promise.all([
+    db.from("service_requests").select("id, category, area_slug, city, client_lat, client_lng, client_name, client_phone, created_at, completed_at, completed_by_provider_id").order("created_at", { ascending: false }).limit(200),
     db.from("provider_dismissed_requests").select("request_id").eq("provider_id", provider.id),
     db
       .from("completed_services")
       .select("id, category, area_slug, city, client_name, completed_at")
       .eq("provider_id", provider.id),
+    db.from("completed_services").select("request_id"),
   ]);
 
   state.allRequests = reqRes.data || [];
   state.dismissedIds = new Set((dismissedRes.data || []).map((d) => d.request_id));
+  state.globallyCompletedIds = new Set(
+    (globalCompletedRes.data || []).map((c) => c.request_id).filter(Boolean)
+  );
   state._completedRaw = sortByCompletedAt(completedRes.data || []);
 
   const matching = getMatchingRequests();

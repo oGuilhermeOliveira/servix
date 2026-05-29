@@ -1,4 +1,4 @@
-import { db } from "./firebase-init.js";
+import { db, buildPasswordResetRedirectUrl } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 
@@ -23,9 +23,38 @@ deleteConfirm.addEventListener("change", () => {
   deleteBtn.disabled = !deleteConfirm.checked;
 });
 
-gotoForgot.addEventListener("click", (e) => {
+gotoForgot.addEventListener("click", async (e) => {
   e.preventDefault();
-  window.location.href = "prestador.html#forgot";
+  if (!db) return;
+
+  const { data: { user } } = await db.auth.getUser();
+  if (!user?.email) {
+    alert("Sessão inválida. Faça login novamente.");
+    return;
+  }
+
+  const ok = confirm(
+    `Enviar link de recuperação para ${user.email}?\n\nVocê poderá definir uma nova senha sem precisar da senha atual.`
+  );
+  if (!ok) return;
+
+  gotoForgot.disabled = true;
+  const prevText = gotoForgot.textContent;
+  gotoForgot.textContent = "Enviando...";
+
+  const redirectTo = buildPasswordResetRedirectUrl("redefinir-senha.html");
+  const { error } = await db.auth.resetPasswordForEmail(user.email, { redirectTo });
+
+  gotoForgot.disabled = false;
+  gotoForgot.textContent = prevText;
+
+  if (error) {
+    alert("Erro ao enviar e-mail: " + error.message);
+  } else {
+    alert(
+      `Link de recuperação enviado para ${user.email}.\n\nVerifique sua caixa de entrada e a pasta de spam.`
+    );
+  }
 });
 
 changeForm.addEventListener("submit", async (e) => {
@@ -53,7 +82,21 @@ changeForm.addEventListener("submit", async (e) => {
   });
 
   if (verify.error) {
-    alert("Senha atual incorreta.");
+    const sendReset = confirm(
+      "Senha atual incorreta.\n\nDeseja receber um link por e-mail para redefinir sua senha?"
+    );
+    if (sendReset) {
+      const redirectTo = buildPasswordResetRedirectUrl("redefinir-senha.html");
+      const { error: resetError } = await db.auth.resetPasswordForEmail(user.email, {
+        redirectTo,
+      });
+      if (resetError) alert("Erro ao enviar e-mail: " + resetError.message);
+      else {
+        alert(
+          `Link enviado para ${user.email}. Verifique sua caixa de entrada e a pasta de spam.`
+        );
+      }
+    }
     return;
   }
 

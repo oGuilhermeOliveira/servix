@@ -45,7 +45,31 @@ let db = null;
 let authReady = Promise.resolve();
 
 function normalizeError(error) {
+  const code = error?.code || "";
+  if (code === "auth/unauthorized-continue-uri") {
+    return {
+      message:
+        "Dominio nao autorizado no Firebase. Use http://localhost (em vez de 127.0.0.1) ou adicione o dominio em Authentication > Settings > Authorized domains.",
+    };
+  }
   return { message: error?.message || "Operacao falhou." };
+}
+
+/** Firebase so aceita dominios autorizados; localhost costuma estar, 127.0.0.1 nao. */
+function normalizeAuthContinueUrl(url) {
+  try {
+    const parsed = new URL(url, window.location.href);
+    if (parsed.hostname === "127.0.0.1") {
+      parsed.hostname = "localhost";
+    }
+    return parsed.href;
+  } catch {
+    return url;
+  }
+}
+
+export function buildPasswordResetRedirectUrl(relativePath = "redefinir-senha.html") {
+  return normalizeAuthContinueUrl(new URL(relativePath, window.location.href).href);
 }
 
 function mapUser(user) {
@@ -593,8 +617,11 @@ function createAuthApi() {
     },
     async resetPasswordForEmail(email, options) {
       try {
+        const redirectUrl = normalizeAuthContinueUrl(
+          options?.redirectTo || window.location.href
+        );
         await sendPasswordResetEmail(auth, email, {
-          url: options?.redirectTo || window.location.href,
+          url: redirectUrl,
           handleCodeInApp: true,
         });
         return { data: true, error: null };

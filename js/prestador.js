@@ -1,4 +1,4 @@
-import { db } from "./firebase-init.js";
+import { db, buildPasswordResetRedirectUrl } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 import { uploadProviderAvatar, validateAvatarFile } from "./avatar-upload.js";
@@ -464,7 +464,7 @@ if (forgotForm) {
     submitBtn.disabled    = true;
     submitBtn.textContent = "Enviando...";
 
-    const redirectTo = new URL("redefinir-senha.html", window.location.href).href;
+    const redirectTo = buildPasswordResetRedirectUrl("redefinir-senha.html");
 
     const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo });
 
