@@ -1,6 +1,13 @@
 import { db } from "./firebase-init.js";
 import { initServiceSearch } from "./service-search.js";
 import { searchServices } from "./service-catalog.js";
+import {
+  fetchRecentTestimonials,
+  formatRatingValue,
+  globalAverageRating,
+  renderStarRating,
+  resolveAreaLabel,
+} from "./provider-reviews.js";
 
 const SESSION_SEARCH_KEY = "servix:last-search";
 
@@ -162,6 +169,65 @@ if (serviceInput && hintEl) {
     clearTimeout(debounceTimer);
   });
 }
+
+async function loadTestimonials() {
+  const host = document.getElementById("testimonials-list");
+  const trustEl = document.querySelector(".hero .trust");
+  if (!host) return;
+
+  if (!db) {
+    host.innerHTML =
+      '<blockquote class="testimonial-placeholder">Depoimentos aparecerão quando o Firebase estiver configurado.</blockquote>';
+    return;
+  }
+
+  const items = await fetchRecentTestimonials(db, 9);
+  const avg = globalAverageRating(items);
+
+  if (trustEl && avg != null) {
+    trustEl.textContent =
+      formatRatingValue(avg) + " de avaliação média | Atendimento no Alto Tietê";
+  }
+
+  host.replaceChildren();
+
+  if (!items.length) {
+    host.innerHTML =
+      '<blockquote class="testimonial-placeholder">Seja o primeiro a avaliar um prestador após um serviço concluído.</blockquote>';
+    return;
+  }
+
+  items.forEach(function (review) {
+    const block = document.createElement("blockquote");
+    block.className = "testimonial-item";
+
+    const head = document.createElement("div");
+    head.className = "testimonial-head";
+    const name = document.createElement("strong");
+    name.textContent = (review.client_name || "Cliente").trim();
+    head.appendChild(name);
+    head.appendChild(renderStarRating(review.rating, { showValue: true }));
+    block.appendChild(head);
+
+    const area = document.createElement("p");
+    area.className = "testimonial-area";
+    area.textContent = resolveAreaLabel(review);
+    block.appendChild(area);
+
+    const quote = document.createElement("p");
+    quote.className = "testimonial-quote";
+    if (review.comment && String(review.comment).trim()) {
+      quote.textContent = `"${String(review.comment).trim()}"`;
+    } else {
+      quote.textContent = "Serviço avaliado na plataforma.";
+    }
+    block.appendChild(quote);
+
+    host.appendChild(block);
+  });
+}
+
+loadTestimonials();
 
 // Card do prestador: muda se logado
 if (db) {

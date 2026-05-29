@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Ajuste conforme sua política de segurança. Exemplo permissivo para MVP local:
+    match /{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Coleção nova: avaliações de prestadores (provider_reviews)
+    // Campos: id, provider_id, request_id, client_name, rating (0-5), comment,
+    // area_slug, area_name, category, created_at
+  }
+}

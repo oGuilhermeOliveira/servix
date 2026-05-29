@@ -135,6 +135,7 @@ function tableDefaults(table, data) {
   if (table === "service_requests" && !next.created_at) next.created_at = now;
   if (table === "provider_notifications" && !next.created_at) next.created_at = now;
   if (table === "completed_services" && !next.completed_at) next.completed_at = now;
+  if (table === "provider_reviews" && !next.created_at) next.created_at = now;
   if (table === "providers" && next.terms_accepted_at && !next.created_at) next.created_at = now;
   return next;
 }
@@ -514,6 +515,7 @@ async function deleteProviderCascadeByUserId(userId) {
     "provider_notifications",
     "provider_dismissed_requests",
     "completed_services",
+    "provider_reviews",
   ];
 
   for (const table of relatedTables) {
@@ -662,8 +664,26 @@ function createAuthApi() {
   };
 }
 
+async function loadFirebaseConfigModule() {
+  try {
+    return await import("./firebase-config.js");
+  } catch {
+    try {
+      const mod = await import("./firebase-config.example.js");
+      console.warn(
+        "firebase-config.js nao encontrado; usando firebase-config.example.js. " +
+          "Copie o exemplo para firebase-config.js no seu ambiente."
+      );
+      return mod;
+    } catch (err) {
+      console.error("Nenhum arquivo de configuracao Firebase encontrado:", err);
+      return null;
+    }
+  }
+}
+
 try {
-  const mod = await import("./firebase-config.js");
+  const mod = await loadFirebaseConfigModule();
   const firebaseConfig = mod?.FIREBASE_CONFIG || mod?.firebaseConfig || null;
   const validConfig = firebaseConfig && !String(firebaseConfig.projectId || "").includes("SEU-PROJETO");
   if (validConfig) {

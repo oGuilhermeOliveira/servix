@@ -80,6 +80,12 @@ function getServiceLabel(req) {
   return state.areas.find((a) => a.slug === req.area_slug)?.name || req.category || "serviço";
 }
 
+function buildEvaluationPageUrl(completedServiceId) {
+  const url = new URL("avaliar.html", window.location.href);
+  url.searchParams.set("ref", completedServiceId);
+  return url.href;
+}
+
 function normalizeWhatsAppPhone(raw) {
   let digits = (raw || "").replace(/\D/g, "");
   if (!digits) return "";
@@ -89,28 +95,58 @@ function normalizeWhatsAppPhone(raw) {
   return digits;
 }
 
-function buildRatingWhatsAppMessage(req) {
-  const clientName = (req.client_name || "cliente").trim();
-  const providerName = (state.provider?.full_name || "seu prestador").trim();
-  const service = getServiceLabel(req);
-  return (
-    `Olá, ${clientName}! Aqui é ${providerName}, da Servix Solutions.\n\n` +
-    `O serviço de *${service}* foi concluído. Como você avalia o atendimento?\n\n` +
-    `*Responda com um número de 0 a 5:*\n\n` +
-    `0 - Péssimo\n1 - Ruim\n2 - Regular\n3 - Bom\n4 - Muito bom\n5 - Excelente\n\n` +
-    `Obrigado pela preferência!`
-  );
-}
+function showEvaluationLinkDialog(clientName, evaluationUrl, clientPhone) {
+  const name = (clientName || "cliente").trim();
+  const box = document.createElement("div");
+  box.className = "eval-link-dialog";
+  box.innerHTML = `
+    <div class="eval-link-dialog-inner">
+      <h3>Serviço concluído</h3>
+      <p>Envie este link para <strong>${name}</strong> avaliar o atendimento (nota e comentário):</p>
+      <input type="text" class="eval-link-input" readonly value="">
+      <div class="eval-link-actions">
+        <button type="button" class="btn btn-small" data-copy-link>Copiar link</button>
+        <button type="button" class="btn btn-small btn-secondary" data-share-wa hidden>Enviar no WhatsApp</button>
+        <a class="btn btn-small btn-secondary" href="" target="_blank" rel="noopener noreferrer">Abrir página</a>
+        <button type="button" class="btn btn-small btn-ghost" data-close-dialog>Fechar</button>
+      </div>
+    </div>
+  `;
+  const input = box.querySelector(".eval-link-input");
+  const openLink = box.querySelector("a[href]");
+  if (input) input.value = evaluationUrl;
+  if (openLink) openLink.href = evaluationUrl;
 
-function openRatingWhatsApp(req) {
-  const phone = normalizeWhatsAppPhone(req.client_phone);
-  if (!phone || phone.length < 12) {
-    alert("Serviço concluído, mas o telefone do cliente é inválido para abrir o WhatsApp.");
-    return;
+  box.addEventListener("click", function (e) {
+    if (e.target === box) box.remove();
+  });
+  box.querySelector("[data-close-dialog]")?.addEventListener("click", function () {
+    box.remove();
+  });
+  box.querySelector("[data-copy-link]")?.addEventListener("click", async function () {
+    try {
+      await navigator.clipboard.writeText(evaluationUrl);
+      alert("Link copiado! Cole no WhatsApp ou e-mail do cliente.");
+    } catch {
+      input?.select();
+      document.execCommand("copy");
+      alert("Link selecionado — use Ctrl+C para copiar.");
+    }
+  });
+
+  const waBtn = box.querySelector("[data-share-wa]");
+  const waPhone = normalizeWhatsAppPhone(clientPhone);
+  if (waBtn && waPhone.length >= 12) {
+    waBtn.hidden = false;
+    const msg =
+      `Olá, ${name}! O serviço foi concluído. Avalie o atendimento (nota e comentário) neste link:\n\n${evaluationUrl}`;
+    const waUrl = "https://wa.me/" + waPhone + "?text=" + encodeURIComponent(msg);
+    waBtn.addEventListener("click", function () {
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+    });
   }
-  const url =
-    "https://wa.me/" + phone + "?text=" + encodeURIComponent(buildRatingWhatsAppMessage(req));
-  window.open(url, "_blank", "noopener,noreferrer");
+
+  document.body.appendChild(box);
 }
 
 function requestMatchesProvider(request, providerSlugs) {
@@ -211,18 +247,14 @@ async function dismissRequest(requestId) {
 }
 
 async function completeRequest(req) {
-  if (!req.client_phone?.replace(/\D/g, "")) {
-    alert("Este pedido não tem telefone do cliente. Não é possível enviar a avaliação pelo WhatsApp.");
-    return;
-  }
-
   const ok = confirm(
-    "Marcar como concluído e abrir o WhatsApp com mensagem pedindo avaliação (0 a 5)?"
+    "Marcar este pedido como concluído? Você receberá um link para o cliente avaliar o atendimento."
   );
   if (!ok) return;
 
+  const completedId = `${state.provider.id}__${req.id}`;
   const row = {
-    id: `${state.provider.id}__${req.id}`,
+    id: completedId,
     provider_id: state.provider.id,
     request_id: req.id,
     category: req.category || "Serviço",
@@ -269,7 +301,7 @@ async function completeRequest(req) {
   await loadCompletedServices();
   updateChart();
 
-  openRatingWhatsApp(req);
+  showEvaluationLinkDialog(req.client_name, buildEvaluationPageUrl(completedId), req.client_phone);
 }
 
 function renderRequests() {

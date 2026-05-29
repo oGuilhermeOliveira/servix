@@ -169,12 +169,27 @@ function collectRegisterPayload() {
 async function hasAnyAreaLinked(userId) {
   const provider = await db.from("providers").select("id").eq("auth_user_id", userId).maybeSingle();
   if (provider.error || !provider.data) return false;
-  const links = await db
+  const providerId = provider.data.id;
+
+  const countRes = await db
     .from("provider_service_areas")
     .select("provider_id", { count: "exact", head: true })
-    .eq("provider_id", provider.data.id);
-  if (links.error) return false;
-  return (links.count || 0) > 0;
+    .eq("provider_id", providerId);
+  if (!countRes.error && (countRes.count || 0) > 0) return true;
+
+  const sample = await db
+    .from("provider_service_areas")
+    .select("provider_id")
+    .eq("provider_id", providerId)
+    .limit(1);
+  if (!sample.error && Array.isArray(sample.data) && sample.data.length > 0) return true;
+
+  const byUserId = await db
+    .from("provider_service_areas")
+    .select("provider_id")
+    .eq("provider_id", userId)
+    .limit(1);
+  return !byUserId.error && Array.isArray(byUserId.data) && byUserId.data.length > 0;
 }
 
 async function refreshAuthState() {
@@ -347,15 +362,13 @@ loginForm.addEventListener("submit", async function (event) {
     if (!hasArea) {
       showMessage(
         "login-form",
-        "Login realizado, mas faltam áreas de atuação no perfil. Volte em 'Criar conta' e envie o formulário para concluir.",
-        true
+        "Login ok. Complete suas areas de atuacao no painel (Editar perfil).",
+        false
       );
-      await refreshAuthState();
-      return;
+    } else {
+      showMessage("login-form", "Login realizado! Redirecionando...", false);
     }
-  }
-
-  if (!completedNow) {
+  } else if (!completedNow) {
     showMessage("login-form", "Login realizado! Redirecionando...", false);
   }
   await refreshAuthState();
@@ -490,6 +503,21 @@ refreshAuthState();
 
 if (window.location.hash === "#forgot") {
   setTab("forgot");
+}
+if (window.location.hash === "#login") {
+  setTab("login");
+}
+
+if (!db) {
+  const card = document.querySelector(".auth-card");
+  if (card) {
+    const warn = document.createElement("p");
+    warn.className = "form-message";
+    warn.style.cssText = "margin-bottom:1rem;color:var(--danger,#c0392b);font-weight:700";
+    warn.textContent =
+      "Firebase nao configurado. Copie js/firebase-config.example.js para js/firebase-config.js e recarregue a pagina.";
+    card.prepend(warn);
+  }
 }
 
 injectFooter();

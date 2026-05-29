@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="../assets/abelhaWhBG.png">
+  <title>Avaliar prestador | Servix Solutions</title>
+  <meta name="description" content="Avalie o atendimento do profissional e deixe seu comentário.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="../index.html" class="brand">Servix <span>Solutions</span></a>
+      <nav class="menu">
+        <a href="../index.html">Início</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container auth-page">
+      <section class="auth-card review-card" id="review-page">
+        <div id="review-loading">
+          <h1>Carregando...</h1>
+          <p class="section-sub">Aguarde um instante.</p>
+        </div>
+
+        <div id="review-error" hidden>
+          <h1>Não foi possível avaliar</h1>
+          <p id="review-error-text" class="section-sub"></p>
+          <a href="../index.html" class="btn full" style="margin-top:1rem">Voltar ao início</a>
+        </div>
+
+        <div id="review-done" hidden>
+          <h1>Obrigado pela avaliação!</h1>
+          <p class="section-sub">Seu feedback ajuda outros clientes a escolherem o melhor profissional.</p>
+          <a href="../index.html#depoimentos" class="btn full" style="margin-top:1rem">Ver depoimentos</a>
+        </div>
+
+        <form id="review-form" class="stack" hidden>
+          <h1>Avaliar atendimento</h1>
+          <p class="section-sub" id="review-intro"></p>
+
+          <p class="review-provider-name" id="review-provider-name"></p>
+          <p class="form-hint" id="review-service-label"></p>
+
+          <fieldset class="review-rating-field">
+            <legend>Nota (0 a 5) *</legend>
+            <div class="review-rating-pick" id="rating-pick" role="radiogroup" aria-label="Nota de 0 a 5"></div>
+            <input type="hidden" id="review-rating" name="rating" required>
+          </fieldset>
+
+          <label for="review-comment">Comentário sobre o prestador</label>
+          <textarea id="review-comment" rows="4" maxlength="800" placeholder="Conte como foi o atendimento (opcional)"></textarea>
+
+          <button class="btn full" type="submit">Enviar avaliação</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { injectFooter } from "../js/footer.js";
+    injectFooter();
+  </script>
+  <script type="module" src="../js/avaliar.js"></script>
+</body>
+</html>
