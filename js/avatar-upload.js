@@ -1,7 +1,7 @@
 /**
- * Upload de foto de perfil do prestador (Cloudinary).
+ * Foto de perfil: comprime no navegador e grava URL no Firestore (sem depender de Storage).
  */
-import { uploadImageToCloudinary } from "./cloudinary-upload.js";
+import { compressImageToDataUrl } from "./avatar-image.js";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -18,14 +18,13 @@ export function validateAvatarFile(file) {
 }
 
 /**
- * Envia avatar e retorna URL pública (Cloudinary).
- * @param {string} userId
+ * @param {string} _userId
  * @param {File} file
- * @param {string|null} _previousUrl - ignorado (remoção exige API secret no servidor)
+ * @param {string|null} _previousUrl
+ * @returns {Promise<string>} data URL ou URL https
  */
-export async function uploadProviderAvatar(userId, file, _previousUrl) {
+export async function uploadProviderAvatar(_userId, file, _previousUrl) {
   const check = validateAvatarFile(file);
   if (!check.ok) throw new Error(check.message);
-
-  return uploadImageToCloudinary(userId, file);
+  return compressImageToDataUrl(file);
 }

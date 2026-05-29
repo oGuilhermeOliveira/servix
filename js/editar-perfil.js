@@ -1,9 +1,11 @@
 import { db } from "./firebase-init.js";
+import { withTimeout } from "./async-utils.js";
 import { uploadProviderAvatar, validateAvatarFile } from "./avatar-upload.js";
 import { injectFooter } from "./footer.js";
 import { notifyProfileUpdated } from "./notifications.js";
 import {
   loadProviderAreas,
+  loadProviderForUser,
   mergeWithDefaultServiceAreas,
   saveProviderServiceAreas,
 } from "./provider-areas.js";
@@ -183,18 +185,32 @@ if (fCep) {
 }
 
 // --- Preview da foto ---
-elPhoto.addEventListener("change", () => {
-  const file = elPhoto.files?.[0];
-  if (!file) return;
-  const check = validateAvatarFile(file);
-  if (!check.ok) {
-    showError(check.message);
-    elPhoto.value = "";
-    return;
+if (elPhoto) {
+  elPhoto.addEventListener("change", () => {
+    const file = elPhoto.files?.[0];
+    if (!file) return;
+    const check = validateAvatarFile(file);
+    if (!check.ok) {
+      showError(check.message);
+      elPhoto.value = "";
+      return;
+    }
+    clearError();
+    setAvatarPreview(URL.createObjectURL(file));
+  });
+}
+
+async function updateProviderRecord(providerId, userId, updateData) {
+  const byId = await db.from("providers").update(updateData).eq("id", providerId);
+  if (!byId.error) {
+    const rows = byId.data;
+    if (Array.isArray(rows) ? rows.length > 0 : Boolean(rows)) return null;
   }
-  clearError();
-  setAvatarPreview(URL.createObjectURL(file));
-});
+  if (byId.error) return byId.error;
+
+  const byAuth = await db.from("providers").update(updateData).eq("auth_user_id", userId);
+  return byAuth.error || null;
+}
 
 function setAvatarPreview(url) {
   if (!url) {
@@ -296,26 +312,22 @@ elForm.addEventListener("submit", async e => {
   submitBtn.disabled = true;
   submitBtn.textContent = "Salvando...";
 
+  let photoWarning = "";
+
   try {
     const { data: { user } } = await db.auth.getUser();
     if (!user) throw new Error("Sessão expirada. Faça login novamente.");
 
-    // Avatar
-    const { data: prov } = await db
-      .from("providers")
-      .select("id, avatar_url")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if (!prov) throw new Error("Perfil não encontrado.");
-
-    const file = elPhoto.files?.[0] || null;
-    let avatarUrl = null;
-    if (file) {
-      avatarUrl = await uploadProviderAvatar(user.id, file, prov.avatar_url);
-    }
+    const loaded = await loadProviderForUser(db, user);
+    const prov = loaded.data;
+    if (!prov?.id) throw new Error("Perfil não encontrado.");
 
     const composed = composeAddress();
-    const coords = await geocodeCep(fCep.value);
+    submitBtn.textContent = "Salvando dados...";
+
+    const coords = await withTimeout(geocodeCep(fCep.value), 6000, "Localização").catch(function () {
+      return { lat: null, lng: null };
+    });
 
     const updateData = {
       full_name: fName.value.trim(),
@@ -327,25 +339,43 @@ elForm.addEventListener("submit", async e => {
       lat: coords.lat,
       lng: coords.lng,
     };
-    if (avatarUrl) updateData.avatar_url = avatarUrl;
 
-    const { error: upErr } = await db
-      .from("providers")
-      .update(updateData)
-      .eq("auth_user_id", user.id);
+    const file = elPhoto?.files?.[0] || null;
+    if (file) {
+      submitBtn.textContent = "Processando foto...";
+      try {
+        const avatarUrl = await withTimeout(
+          uploadProviderAvatar(user.id, file, prov.avatar_url),
+          15000,
+          "Foto"
+        );
+        updateData.avatar_url = avatarUrl;
+      } catch (photoErr) {
+        photoWarning =
+          (photoErr?.message || "Não foi possível processar a foto.") +
+          " Os demais dados serão salvos.";
+        console.warn("avatar upload:", photoErr);
+      }
+    }
+
+    submitBtn.textContent = "Salvando no servidor...";
+    const upErr = await updateProviderRecord(prov.id, user.id, updateData);
     if (upErr) throw new Error(upErr.message || "Erro ao atualizar perfil.");
 
     const areaSave = await saveProviderServiceAreas(db, prov.id, areaIds);
     if (areaSave.error) throw new Error(areaSave.error.message || "Erro ao salvar areas.");
 
-    await notifyProfileUpdated(prov.id);
+    await notifyProfileUpdated(prov.id).catch(function () {});
 
     elSuccess.style.display = "block";
+    if (photoWarning) {
+      showError(photoWarning);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     setTimeout(() => {
-      window.location.href = "dashboard.html?perfil=atualizado";
-    }, 1200);
+      window.location.href = "dashboard.html?perfil=atualizado&v=" + Date.now();
+    }, photoWarning ? 2200 : 900);
 
   } catch(err) {
     showError(err.message || "Erro ao salvar. Tente novamente.");
@@ -363,13 +393,12 @@ async function init() {
   const { data: { user } } = await db.auth.getUser();
   if (!user) { showState("not-logged"); return; }
 
-  const { data: provider, error } = await db
-    .from("providers")
-    .select("id, full_name, phone, city, state, address, cep, avatar_url")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
+  const { data: provider, error } = await loadProviderForUser(db, user);
 
-  if (error || !provider) { showState("not-logged"); return; }
+  if (error || !provider) {
+    window.location.replace("prestador.html?next=editar-perfil.html");
+    return;
+  }
 
   const linkedAreas = await loadProviderAreas(db, provider.id);
   const areaIds = linkedAreas.map((a) => a.slug || a.id);

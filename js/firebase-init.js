@@ -480,7 +480,9 @@ function createStorageApi() {
         async upload(path, file) {
           try {
             const storageRef = ref(storage, `${bucket}/${path}`);
-            await uploadBytes(storageRef, file);
+            await uploadBytes(storageRef, file, {
+              contentType: file?.type || "image/jpeg",
+            });
             const publicUrl = await getDownloadURL(storageRef);
             return { data: { path, publicUrl }, error: null };
           } catch (error) {

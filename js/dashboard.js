@@ -2,7 +2,11 @@ import { db } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
 import { notifyManyRequestsIfNeeded, notifyProfileUpdated } from "./notifications.js";
-import { ensureProviderRow, loadProviderAreas } from "./provider-areas.js";
+import { ensureProviderRow, loadProviderAreas, loadProviderForUser } from "./provider-areas.js";
+import {
+  isProviderProfileIncomplete,
+  tryCompletePendingProviderRegistration,
+} from "./provider-register-complete.js";
 
 injectFooter();
 setupThemeSwitcher();
@@ -134,19 +138,42 @@ function getMatchingRequests() {
   });
 }
 
+function renderProfileAvatar(provider) {
+  if (!elAvatarContainer) return;
+  const url = (provider.avatar_url || "").trim();
+  elAvatarContainer.replaceChildren();
+
+  if (!url) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "profile-avatar-placeholder";
+    placeholder.textContent = "👤";
+    placeholder.title = "Adicione sua foto em Editar perfil";
+    elAvatarContainer.appendChild(placeholder);
+    return;
+  }
+
+  const img = document.createElement("img");
+  img.src = url;
+  img.alt = "Foto de " + (provider.full_name || "prestador");
+  img.className = "profile-avatar-large";
+  img.loading = "eager";
+  if (!url.startsWith("data:")) {
+    img.referrerPolicy = "no-referrer";
+    img.crossOrigin = "anonymous";
+  }
+  img.onerror = function () {
+    renderProfileAvatar({ ...provider, avatar_url: "" });
+  };
+  elAvatarContainer.appendChild(img);
+}
+
 function renderProfile(provider, areas) {
   elName.textContent = provider.full_name || "Sem nome";
   elEmail.textContent = provider.email || "—";
   elPhone.textContent = provider.phone || "—";
   elLocation.textContent = [provider.city, provider.state].filter(Boolean).join(" / ") || "Não informado";
 
-  if (provider.avatar_url) {
-    const img = document.createElement("img");
-    img.src = provider.avatar_url;
-    img.alt = "Foto de " + (provider.full_name || "prestador");
-    img.className = "profile-avatar-large";
-    elAvatarContainer.replaceChildren(img);
-  }
+  renderProfileAvatar(provider);
 
   elAreasTags.innerHTML = "";
   areas.forEach((area) => {
@@ -455,52 +482,132 @@ if (new URLSearchParams(window.location.search).get("perfil") === "atualizado") 
   }, { once: true });
 }
 
+async function waitForAuthUser() {
+  const first = await db.auth.getUser();
+  if (first.data?.user) return first.data.user;
+
+  return new Promise(function (resolve) {
+    let settled = false;
+    const timeout = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      resolve(null);
+    }, 8000);
+
+    const sub = db.auth.onAuthStateChange(function (event, payload) {
+      const u = payload?.user || null;
+      if (u && !settled) {
+        settled = true;
+        clearTimeout(timeout);
+        sub?.data?.subscription?.unsubscribe?.();
+        resolve(u);
+      }
+      if (event === "SIGNED_OUT" && !settled) {
+        settled = true;
+        clearTimeout(timeout);
+        sub?.data?.subscription?.unsubscribe?.();
+        resolve(null);
+      }
+    });
+  });
+}
+
 async function init() {
   if (!db) {
+    const notLoggedEl = document.getElementById("not-logged");
+    if (notLoggedEl) {
+      notLoggedEl.querySelector("p").textContent =
+        "Firebase nao configurado. Copie js/firebase-config.example.js para js/firebase-config.js.";
+    }
     showState("not-logged");
     return;
   }
   showState("loading");
 
-  const { data: { user } } = await db.auth.getUser();
+  const user = await waitForAuthUser();
   if (!user) {
-    showState("not-logged");
+    window.location.replace("prestador.html?next=dashboard.html");
     return;
   }
 
   try {
-    await ensureProviderRow(db, user, user.email || "");
+    await tryCompletePendingProviderRegistration(db, user, user.email || "", null);
   } catch (error) {
-    console.error("ensureProviderRow", error);
+    console.error("tryCompletePendingProviderRegistration", error);
   }
 
-  const { data: provider, error: provError } = await db
+  let { data: provider, error: provError } = await loadProviderForUser(db, user);
+
+  if (!provError && provider && isProviderProfileIncomplete(provider)) {
+    try {
+      const completed = await tryCompletePendingProviderRegistration(
+        db,
+        user,
+        user.email || "",
+        provider
+      );
+      if (completed) {
+        const refreshed = await loadProviderForUser(db, user);
+        if (!refreshed.error && refreshed.data) {
+          provider = refreshed.data;
+        }
+      }
+    } catch (error) {
+      console.error("tryCompletePendingProviderRegistration", error);
+    }
+  }
+
+  if (provError) {
+    console.warn("loadProviderForUser:", provError);
+  }
+
+  if (!provider) {
+    try {
+      const providerId = await ensureProviderRow(db, user, user.email || "");
+      const retry = await db
+        .from("providers")
+        .select("id, full_name, email, phone, city, state, avatar_url, lat, lng")
+        .eq("id", providerId)
+        .maybeSingle();
+      if (!retry.error && retry.data) provider = retry.data;
+    } catch (error) {
+      console.error("ensureProviderRow no dashboard:", error);
+    }
+  }
+
+  if (!provider) {
+    provider = {
+      id: user.id,
+      auth_user_id: user.id,
+      email: user.email || "",
+      full_name: "",
+      phone: "",
+      city: "",
+      state: "",
+      avatar_url: "",
+    };
+  }
+
+  const fresh = await db
     .from("providers")
-    .select("id, full_name, email, phone, city, state, avatar_url, lat, lng, provider_service_areas(service_areas(id, slug, name))")
+    .select("id, full_name, email, phone, city, state, avatar_url")
     .eq("auth_user_id", user.id)
     .maybeSingle();
-
-  if (provError || !provider) {
-    showState("not-logged");
-    const notLoggedEl = document.getElementById("not-logged");
-    if (notLoggedEl) {
-      notLoggedEl.querySelector("p").textContent =
-        "Não foi possível carregar seu perfil de prestador. Conclua o cadastro ou tente novamente.";
-      const link = notLoggedEl.querySelector("a");
-      if (link) {
-        link.textContent = "Completar cadastro";
-        link.href = "prestador.html";
-      }
+  if (!fresh.error && fresh.data) {
+    provider = { ...provider, ...fresh.data };
+  } else {
+    const byId = await db
+      .from("providers")
+      .select("id, full_name, email, phone, city, state, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!byId.error && byId.data) {
+      provider = { ...provider, ...byId.data };
     }
-    return;
   }
 
   state.provider = provider;
   state.areas = await loadProviderAreas(db, provider.id);
-  if (!state.areas.length) {
-    const nested = (provider.provider_service_areas || []).map((l) => l.service_areas).filter(Boolean);
-    state.areas = nested;
-  }
   state.providerSlugs = state.areas.map((a) => a.slug).filter(Boolean);
 
   renderProfile(provider, state.areas);

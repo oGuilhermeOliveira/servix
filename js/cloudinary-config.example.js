@@ -1,4 +1,5 @@
-// Copie para cloudinary-config.js e preencha com os dados do Cloudinary.
+// Opcional: fotos usam Firebase Storage por padrao (mesmo projeto do firebase-config.js).
+// Copie para cloudinary-config.js apenas se quiser fallback Cloudinary.
 //
 // 1. Crie conta grátis em https://cloudinary.com
 // 2. Dashboard → Settings → Upload → Add upload preset

@@ -1,12 +1,14 @@
 import { db, buildPasswordResetRedirectUrl } from "./firebase-init.js";
 import { injectFooter } from "./footer.js";
 import { setupThemeSwitcher } from "./theme.js";
-import { uploadProviderAvatar, validateAvatarFile } from "./avatar-upload.js";
+import { ensureProviderRow, mergeWithDefaultServiceAreas } from "./provider-areas.js";
+import { validateAvatarFile } from "./avatar-upload.js";
 import {
-  ensureProviderRow,
-  mergeWithDefaultServiceAreas,
-  saveProviderServiceAreas,
-} from "./provider-areas.js";
+  clearPendingProviderRegistration,
+  finalizeProviderRegistration,
+  loadPendingProviderRegistration,
+  savePendingProviderRegistration,
+} from "./provider-register-complete.js";
 
 const registerForm = document.getElementById("register-form");
 const loginForm = document.getElementById("login-form");
@@ -27,8 +29,12 @@ const cityInput = document.getElementById("reg-city");
 const stateInput = document.getElementById("reg-state");
 // Painel de endereço preenchido pelo CEP
 const cepAddressPanel = document.getElementById("reg-cep-address");
-let pendingRegistration = null;
-const PENDING_REG_KEY = "servix:pending-provider-registration";
+function redirectAfterAuth(defaultPath) {
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
+  const target = next && !next.includes("://") ? next : defaultPath || "dashboard.html";
+  window.location.href = target;
+}
 
 function showMessage(containerId, message, isError) {
   const host = document.getElementById(containerId);
@@ -102,13 +108,6 @@ function composeAddress() {
   return { address: address, city: city, state: state, cep: normalizeCep(cep) };
 }
 
-async function uploadAvatar(userId, file) {
-  if (!file) return null;
-  const check = validateAvatarFile(file);
-  if (!check.ok) throw new Error(check.message);
-  return uploadProviderAvatar(userId, file, null);
-}
-
 async function loadAreas() {
   if (!registerAreasHost || !db) return;
   const { data, error } = await db.from("service_areas").select("id,slug,name").order("name");
@@ -146,28 +145,6 @@ function selectedAreaIds() {
   });
 }
 
-async function saveProviderProfile(userId, email, payload) {
-  const upsertData = {
-    auth_user_id: userId,
-    email: email.toLowerCase().trim(),
-    full_name: payload.fullName.trim(),
-    phone: payload.phone.trim(),
-    address: payload.address.trim(),
-    city: payload.city,
-    state: payload.state,
-    cep: payload.cep || null,
-    avatar_url: payload.avatarUrl,
-    lat: payload.lat,
-    lng: payload.lng,
-    terms_accepted_at: new Date().toISOString(),
-  };
-  const upsert = await db.from("providers").upsert(upsertData, { onConflict: "auth_user_id" }).select("id").single();
-  if (upsert.error) throw upsert.error;
-  const providerId = upsert.data.id;
-  const areaSave = await saveProviderServiceAreas(db, providerId, payload.areaIds);
-  if (areaSave.error) throw new Error(areaSave.error.message || "Erro ao salvar areas de atuacao.");
-}
-
 function collectRegisterPayload() {
   const fullName = document.getElementById("reg-full-name").value;
   const phone = document.getElementById("reg-phone").value;
@@ -189,53 +166,6 @@ function collectRegisterPayload() {
   };
 }
 
-function savePendingRegistration(data) {
-  pendingRegistration = data;
-  try {
-    localStorage.setItem(PENDING_REG_KEY, JSON.stringify(data));
-  } catch {
-    // ignore storage errors
-  }
-}
-
-function loadPendingRegistration() {
-  if (pendingRegistration) return pendingRegistration;
-  try {
-    const raw = localStorage.getItem(PENDING_REG_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    pendingRegistration = parsed;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function clearPendingRegistration() {
-  pendingRegistration = null;
-  try {
-    localStorage.removeItem(PENDING_REG_KEY);
-  } catch {
-    // ignore storage errors
-  }
-}
-
-async function finalizeProfileForUser(user, email, payload) {
-  const avatarUrl = await uploadAvatar(user.id, payload.photo);
-  await saveProviderProfile(user.id, email, {
-    fullName: payload.fullName,
-    phone: payload.phone,
-    address: payload.composed.address,
-    city: payload.composed.city,
-    state: payload.composed.state,
-    cep: payload.composed.cep,
-    avatarUrl,
-    areaIds: payload.areaIds,
-    lat: null,
-    lng: null,
-  });
-}
-
 async function hasAnyAreaLinked(userId) {
   const provider = await db.from("providers").select("id").eq("auth_user_id", userId).maybeSingle();
   if (provider.error || !provider.data) return false;
@@ -252,11 +182,6 @@ async function refreshAuthState() {
   const result = await db.auth.getUser();
   const user = result.data.user;
   if (user) {
-    try {
-      await ensureProviderRow(db, user, user.email || "");
-    } catch (error) {
-      console.error("ensureProviderRow", error);
-    }
     if (authGuest) authGuest.hidden = true;
     loggedBox.hidden = false;
     loggedText.textContent = "Logado como: " + user.email;
@@ -332,7 +257,10 @@ registerForm.addEventListener("submit", async function (event) {
     return;
   }
 
-  const sign = await db.auth.signUp({ email: formData.email.trim(), password: formData.password });
+  const normalizedEmail = formData.email.trim().toLowerCase();
+  savePendingProviderRegistration(normalizedEmail, formData);
+
+  const sign = await db.auth.signUp({ email: normalizedEmail, password: formData.password });
   if (sign.error) {
     showMessage("register-form", sign.error.message, true);
     return;
@@ -340,10 +268,6 @@ registerForm.addEventListener("submit", async function (event) {
   const sessionUser = sign.data.user;
   const session = sign.data.session;
   if (!session || !sessionUser) {
-    savePendingRegistration({
-      email: formData.email.trim().toLowerCase(),
-      payload: formData,
-    });
     const loginEmail = document.getElementById("login-email");
     if (loginEmail) loginEmail.value = formData.email.trim();
     showMessage(
@@ -356,12 +280,14 @@ registerForm.addEventListener("submit", async function (event) {
   }
 
   try {
-    await ensureProviderRow(db, sessionUser, formData.email);
-    await finalizeProfileForUser(sessionUser, formData.email, formData);
-    showMessage("register-form", "Cadastro concluido com sucesso. Voce ja esta logado.", false);
+    await finalizeProviderRegistration(db, sessionUser, normalizedEmail, formData);
+    clearPendingProviderRegistration();
+    showMessage("register-form", "Cadastro concluido! Redirecionando para o painel...", false);
     registerForm.reset();
-    clearPendingRegistration();
     await refreshAuthState();
+    setTimeout(function () {
+      redirectAfterAuth("dashboard.html");
+    }, 800);
   } catch (error) {
     showMessage("register-form", error.message || "Erro ao salvar cadastro.", true);
   }
@@ -381,29 +307,35 @@ loginForm.addEventListener("submit", async function (event) {
     return;
   }
 
-  try {
-    await ensureProviderRow(db, signIn.data.user, email);
-  } catch (error) {
-    showMessage(
-      "login-form",
-      "Login ok, mas falhou ao garantir cadastro em provedores: " + (error.message || "erro desconhecido."),
-      true
-    );
-    return;
-  }
-
   let completedNow = false;
-  const pending = loadPendingRegistration();
-  if (pending && pending.email === email && signIn.data.user) {
+  const normalizedLoginEmail = email.toLowerCase().trim();
+  const pending = loadPendingProviderRegistration();
+  if (pending && pending.email === normalizedLoginEmail && signIn.data.user) {
     try {
-      await finalizeProfileForUser(signIn.data.user, email, pending.payload);
-      clearPendingRegistration();
+      await finalizeProviderRegistration(db, signIn.data.user, normalizedLoginEmail, pending.payload);
+      clearPendingProviderRegistration();
       completedNow = true;
-      showMessage("login-form", "Login realizado e perfil concluido. Agora voce aparece nas buscas.", false);
+      showMessage("login-form", "Login realizado! Redirecionando para o painel...", false);
+      setTimeout(function () {
+        redirectAfterAuth("dashboard.html");
+      }, 800);
     } catch (error) {
       showMessage(
         "login-form",
         "Login ok, mas faltou concluir perfil: " + (error.message || "tente novamente."),
+        true
+      );
+      return;
+    }
+  }
+
+  if (!completedNow) {
+    try {
+      await ensureProviderRow(db, signIn.data.user, email);
+    } catch (error) {
+      showMessage(
+        "login-form",
+        "Login ok, mas falhou ao garantir cadastro em provedores: " + (error.message || "erro desconhecido."),
         true
       );
       return;
@@ -424,9 +356,12 @@ loginForm.addEventListener("submit", async function (event) {
   }
 
   if (!completedNow) {
-    showMessage("login-form", "Login realizado com sucesso.", false);
+    showMessage("login-form", "Login realizado! Redirecionando...", false);
   }
   await refreshAuthState();
+  setTimeout(function () {
+    redirectAfterAuth("dashboard.html");
+  }, completedNow ? 800 : 600);
 });
 
 logoutBtn.addEventListener("click", async function () {
@@ -516,6 +451,33 @@ if (db) {
   db.auth.onAuthStateChange((event) => {
     if (event === "PASSWORD_RECOVERY") setTab("reset");
     refreshAuthState();
+  });
+}
+
+// --- Pré-visualização da foto no cadastro ---
+const regPhotoInput = document.getElementById("reg-photo");
+const regPhotoPreview = document.getElementById("reg-photo-preview");
+if (regPhotoInput && regPhotoPreview) {
+  regPhotoInput.addEventListener("change", function () {
+    const file = regPhotoInput.files?.[0];
+    if (!file) {
+      regPhotoPreview.hidden = true;
+      regPhotoPreview.replaceChildren();
+      return;
+    }
+    const check = validateAvatarFile(file);
+    if (!check.ok) {
+      showMessage("register-form", check.message, true);
+      regPhotoInput.value = "";
+      regPhotoPreview.hidden = true;
+      return;
+    }
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    img.alt = "Pré-visualização da foto";
+    img.className = "reg-photo-preview-img";
+    regPhotoPreview.replaceChildren(img);
+    regPhotoPreview.hidden = false;
   });
 }
 

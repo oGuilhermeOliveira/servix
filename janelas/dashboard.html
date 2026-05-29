@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <link rel="icon" type="image/png" href="../assets/abelhaWhBG.png">
   <title>Meu Painel | Servix Solutions</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -275,7 +276,7 @@
       <div id="not-logged" class="not-logged" hidden>
         <h2>Acesso restrito</h2>
         <p>Faça login como profissional para ver seu painel.</p>
-        <a href="prestador.html" class="btn">Ir para login do profissional</a>
+        <a href="prestador.html?next=dashboard.html" class="btn">Ir para login do profissional</a>
       </div>
 
       <!-- Estado: carregando -->
@@ -388,6 +389,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="../js/dashboard.js"></script>
+  <script type="module" src="../js/dashboard.js?v=20260529b"></script>
 </body>
 </html>

@@ -995,6 +995,18 @@ blockquote {
   margin-top: 0.2rem;
 }
 
+.reg-photo-preview {
+  margin-top: 0.6rem;
+}
+
+.reg-photo-preview-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent);
+}
+
 @media (max-width: 980px) {
   .menu {
     display: none;

@@ -118,6 +118,67 @@ export async function loadProviderAreas(db, providerId) {
   });
 }
 
+const PROVIDER_PROFILE_FIELDS =
+  "id, full_name, email, phone, city, state, address, cep, avatar_url, lat, lng, auth_user_id";
+
+/** Carrega prestador pelo usuário autenticado (id do doc, auth_user_id, e-mail ou criação mínima). */
+export async function loadProviderForUser(db, user) {
+  if (!db || !user?.id) {
+    return { data: null, error: { message: "Usuario invalido." } };
+  }
+
+  const email = (user.email || "").toLowerCase().trim();
+
+  let res = await db
+    .from("providers")
+    .select(PROVIDER_PROFILE_FIELDS)
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!res.error && res.data) {
+    if (!res.data.auth_user_id) {
+      await db.from("providers").update({ auth_user_id: user.id }).eq("id", user.id);
+      res.data.auth_user_id = user.id;
+    }
+    return res;
+  }
+
+  res = await db
+    .from("providers")
+    .select(PROVIDER_PROFILE_FIELDS)
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+  if (res.error) return res;
+  if (res.data) return res;
+
+  if (email) {
+    const byEmail = await db
+      .from("providers")
+      .select(PROVIDER_PROFILE_FIELDS)
+      .eq("email", email)
+      .maybeSingle();
+    if (byEmail.error) return byEmail;
+    if (byEmail.data) {
+      if (!byEmail.data.auth_user_id) {
+        await db.from("providers").update({ auth_user_id: user.id }).eq("id", byEmail.data.id);
+        byEmail.data.auth_user_id = user.id;
+      }
+      return byEmail;
+    }
+  }
+
+  try {
+    await ensureProviderRow(db, user, email);
+  } catch (error) {
+    return { data: null, error };
+  }
+
+  return db
+    .from("providers")
+    .select(PROVIDER_PROFILE_FIELDS)
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+}
+
 /** Garante documento do prestador vinculado ao usuário autenticado. */
 export async function ensureProviderRow(db, user, email) {
   const normalizedEmail = (email || user.email || "").toLowerCase().trim();
@@ -141,15 +202,13 @@ export async function ensureProviderRow(db, user, email) {
     return byEmail.data.id;
   }
 
+  // Não grava nome/telefone/endereço vazios: merge:true apagaria dados já salvos no cadastro.
   const ins = await db
     .from("providers")
     .insert({
       id: user.id,
       auth_user_id: user.id,
       email: normalizedEmail,
-      full_name: "",
-      phone: "",
-      address: "",
     })
     .select("id")
     .single();
