@@ -1,3 +1,4 @@
+import { showAppAlert } from "./app-dialog.js";
 import { db } from "./firebase-init.js";
 import {
   averageRating,
@@ -236,8 +237,14 @@ async function run() {
   }
 
   if (search.pendingRequest && !search.requestSubmitted) {
-    await submitRequest(search);
+    const submitError = await submitRequest(search);
     search = readSearchSession() || search;
+    if (!submitError && search.requestSubmitted) {
+      await showAppAlert(
+        "Seu orçamento foi solicitado. Em breve algum prestador irá entrar em contato com você.",
+        { title: "Pedido enviado", variant: "success", okLabel: "Entendi" }
+      );
+    }
   }
 
   const serviceLabel = search.category || "seu servico";
